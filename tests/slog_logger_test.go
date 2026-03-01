@@ -3,7 +3,6 @@ package dlog_test
 import (
 	"context"
 	"encoding/json"
-	"log/slog"
 	"os"
 	"path/filepath"
 	"strings"
@@ -13,13 +12,7 @@ import (
 )
 
 func TestNewSlogLogger_DisabledReturnsNoOp(t *testing.T) {
-	config := dlog.DebugConfig{
-		Enabled:  false,
-		MinLevel: slog.LevelDebug,
-		Format:   dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(false, dlog.FormatJSON, "")
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -31,13 +24,7 @@ func TestNewSlogLogger_DisabledReturnsNoOp(t *testing.T) {
 }
 
 func TestNewSlogLogger_EnabledReturnsSlogLogger(t *testing.T) {
-	config := dlog.DebugConfig{
-		Enabled:  true,
-		MinLevel: slog.LevelDebug,
-		Format:   dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -52,14 +39,7 @@ func TestNewSlogLogger_WithFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "slog-test.jsonl")
 
-	config := dlog.DebugConfig{
-		Enabled:    true,
-		MinLevel:   slog.LevelDebug,
-		OutputFile: outputFile,
-		Format:     dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -88,13 +68,7 @@ func TestNewSlogLogger_Formats(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			config := dlog.DebugConfig{
-				Enabled:  true,
-				MinLevel: slog.LevelDebug,
-				Format:   tt.format,
-			}
-
-			logger, err := dlog.NewSlogLogger(config)
+			logger, err := dlog.NewSlogLogger(true, tt.format, "")
 			if err != nil {
 				t.Fatalf("NewSlogLogger failed: %v", err)
 			}
@@ -138,14 +112,7 @@ func TestSlogLogger_LogLevels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Create a slog logger directly with our handler
-			config := dlog.DebugConfig{
-				Enabled:  true,
-				MinLevel: slog.LevelDebug,
-				Format:   dlog.FormatText,
-			}
-
-			logger, err := dlog.NewSlogLogger(config)
+			logger, err := dlog.NewSlogLogger(true, dlog.FormatText, "")
 			if err != nil {
 				t.Fatalf("NewSlogLogger failed: %v", err)
 			}
@@ -161,13 +128,7 @@ func TestSlogLogger_LogLevels(t *testing.T) {
 }
 
 func TestSlogLogger_LogError(t *testing.T) {
-	config := dlog.DebugConfig{
-		Enabled:  true,
-		MinLevel: slog.LevelDebug,
-		Format:   dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -181,13 +142,7 @@ func TestSlogLogger_LogError(t *testing.T) {
 }
 
 func TestSlogLogger_WithFields(t *testing.T) {
-	config := dlog.DebugConfig{
-		Enabled:  true,
-		MinLevel: slog.LevelDebug,
-		Format:   dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -220,14 +175,7 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withfields-test.jsonl")
 
-	config := dlog.DebugConfig{
-		Enabled:    true,
-		MinLevel:   slog.LevelDebug,
-		OutputFile: outputFile,
-		Format:     dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -265,13 +213,7 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 }
 
 func TestSlogLogger_WithGroup(t *testing.T) {
-	config := dlog.DebugConfig{
-		Enabled:  true,
-		MinLevel: slog.LevelDebug,
-		Format:   dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -292,14 +234,7 @@ func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withgroup-test.jsonl")
 
-	config := dlog.DebugConfig{
-		Enabled:    true,
-		MinLevel:   slog.LevelDebug,
-		OutputFile: outputFile,
-		Format:     dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -342,14 +277,7 @@ func TestSlogLogger_WithGroupChained(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withgroupchained-test.jsonl")
 
-	config := dlog.DebugConfig{
-		Enabled:    true,
-		MinLevel:   slog.LevelDebug,
-		OutputFile: outputFile,
-		Format:     dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -393,14 +321,7 @@ func TestSlogLogger_Close(t *testing.T) {
 		tmpDir := t.TempDir()
 		outputFile := filepath.Join(tmpDir, "close-test.jsonl")
 
-		config := dlog.DebugConfig{
-			Enabled:    true,
-			MinLevel:   slog.LevelDebug,
-			OutputFile: outputFile,
-			Format:     dlog.FormatJSON,
-		}
-
-		logger, err := dlog.NewSlogLogger(config)
+		logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
 		if err != nil {
 			t.Fatalf("NewSlogLogger failed: %v", err)
 		}
@@ -411,13 +332,7 @@ func TestSlogLogger_Close(t *testing.T) {
 	})
 
 	t.Run("close without file", func(t *testing.T) {
-		config := dlog.DebugConfig{
-			Enabled:  true,
-			MinLevel: slog.LevelDebug,
-			Format:   dlog.FormatJSON,
-		}
-
-		logger, err := dlog.NewSlogLogger(config)
+		logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 		if err != nil {
 			t.Fatalf("NewSlogLogger failed: %v", err)
 		}
@@ -432,14 +347,7 @@ func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "integration-json.jsonl")
 
-	config := dlog.DebugConfig{
-		Enabled:    true,
-		MinLevel:   slog.LevelDebug,
-		OutputFile: outputFile,
-		Format:     dlog.FormatJSON,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -493,14 +401,7 @@ func TestSlogLogger_Integration_TextFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "integration-text.txt")
 
-	config := dlog.DebugConfig{
-		Enabled:    true,
-		MinLevel:   slog.LevelDebug,
-		OutputFile: outputFile,
-		Format:     dlog.FormatText,
-	}
-
-	logger, err := dlog.NewSlogLogger(config)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatText, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -535,8 +436,7 @@ func TestSlogLogger_ImplementsDebugLogger(t *testing.T) {
 	var _ dlog.DebugLogger = &dlog.SlogLogger{}
 
 	// Also verify through NewSlogLogger
-	config := dlog.DebugConfig{Enabled: true}
-	logger, _ := dlog.NewSlogLogger(config)
+	logger, _ := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 	defer logger.Close()
 	var _ dlog.DebugLogger = logger
 }

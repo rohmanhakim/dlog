@@ -14,63 +14,35 @@ func main() {
 	var textLogger dlog.DebugLogger = dlog.NewNoOpLogger()
 	var logfmtLogger dlog.DebugLogger = dlog.NewNoOpLogger()
 
-	logstashConfig, err := dlog.NewDebugConfig(true, "MyJSONLogger", "test-output.jsonl", dlog.FormatJSON)
-	if err != nil {
-		log.Printf("failed to create debug config: %v, using NoOpLogger", err)
-	} else {
-		fieldMap := dlog.FieldMap{
-			"service.name":    "billing-api",
-			"service.version": "1.4.2",
-			"component":       "scheduler",
-			"operation":       "retry_job",
-			"trace.id":        "abc123",
-		}
-		logstashLogger, err = dlog.NewSlogLogger(logstashConfig)
-		logstashLogger = logstashLogger.WithFields(fieldMap)
-		logstashLogger = logstashLogger.WithGroup("myservice")
-		if err != nil {
-			log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
-			logstashLogger = dlog.NewNoOpLogger()
-		}
+	fieldMap := dlog.FieldMap{
+		"service.name":    "billing-api",
+		"service.version": "1.4.2",
+		"component":       "scheduler",
+		"operation":       "retry_job",
+		"trace.id":        "abc123",
 	}
 
-	textConfig, err := dlog.NewDebugConfig(true, "MyTextLogger", "test-output.txt", dlog.FormatText)
+	logstashLogger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "test-output.jsonl")
 	if err != nil {
-		log.Printf("failed to create debug config: %v, using NoOpLogger", err)
-	} else {
-		textLogger, err = dlog.NewSlogLogger(textConfig)
-		fieldMap := dlog.FieldMap{
-			"service.name":    "billing-api",
-			"service.version": "1.4.2",
-			"component":       "scheduler",
-			"operation":       "retry_job",
-			"trace.id":        "abc123",
-		}
-		textLogger = textLogger.WithFields(fieldMap)
-		if err != nil {
-			log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
-			textLogger = dlog.NewNoOpLogger()
-		}
+		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
+		logstashLogger = dlog.NewNoOpLogger()
 	}
+	logstashLogger = logstashLogger.WithFields(fieldMap)
+	logstashLogger = logstashLogger.WithGroup("myservice")
 
-	logfmtConfig, err := dlog.NewDebugConfig(true, "MyLogfmtLogger", "test-output.logfmt", dlog.FormatLogfmt)
+	textLogger, err = dlog.NewSlogLogger(true, dlog.FormatText, "test-output.txt")
 	if err != nil {
-		log.Printf("failed to create debug config: %v, using NoOpLogger", err)
-	} else {
-		logfmtLogger, err = dlog.NewSlogLogger(logfmtConfig)
-		fieldMap := dlog.FieldMap{
-			"service.name":    "billing-api",
-			"service.version": "1.4.2",
-			"component":       "scheduler",
-			"operation":       "retry_job",
-			"trace.id":        "abc123",
-		}
-		logfmtLogger = logfmtLogger.WithFields(fieldMap)
-		if err != nil {
-			log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
-			logfmtLogger = dlog.NewNoOpLogger()
-		}
+		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
+		textLogger = dlog.NewNoOpLogger()
 	}
+	textLogger = textLogger.WithFields(fieldMap)
+
+	logfmtLogger, err = dlog.NewSlogLogger(true, dlog.FormatLogfmt, "test-output.logfmt")
+	if err != nil {
+		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
+		logfmtLogger = dlog.NewNoOpLogger()
+	}
+	logfmtLogger = logfmtLogger.WithFields(fieldMap)
 
 	ctx := context.Background()
 	logstashLogger.LogDebug(ctx, "New JSON-formatted Message with Debug-level", dlog.FieldMap{"my_debug_key": "my_debug_val"})

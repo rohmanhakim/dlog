@@ -16,42 +16,55 @@ type SlogLogger struct {
 }
 
 // NewSlogLogger creates a new SlogLogger with the given configuration.
-// If config.Enabled is false, a NoOpLogger is returned instead.
-func NewSlogLogger(config DebugConfig) (DebugLogger, error) {
-	if !config.Enabled {
+// If enabled is false, a NoOpLogger is returned instead.
+// Optional parameters can be provided using WithMinLevel, WithIncludeFields, and WithExcludeFields.
+func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Option) (DebugLogger, error) {
+	if !enabled {
 		return NewNoOpLogger(), nil
 	}
 
+	// Apply defaults
+	cfg := &config{
+		minLevel:      slog.LevelDebug,
+		includeFields: []string{},
+		excludeFields: []string{},
+	}
+
+	// Apply options
+	for _, opt := range opts {
+		opt(cfg)
+	}
+
 	// Create the writer (stdout + optional file)
-	writer, err := NewMultiWriter(config.OutputFile)
+	writer, err := NewMultiWriter(outputFile)
 	if err != nil {
 		return nil, err
 	}
 
 	// Create the appropriate handler based on format
 	var handler slog.Handler
-	switch config.Format {
+	switch format {
 	case FormatText:
 		handler = NewTextHandler(
 			writer,
 			&TextHandlerOptions{
-				Level: config.MinLevel,
+				Level: cfg.minLevel,
 			},
 		)
 	case FormatLogfmt:
 		handler = NewLogfmtHandler(
 			writer,
 			&LogfmtHandlerOptions{
-				Level: config.MinLevel,
+				Level: cfg.minLevel,
 			},
 		)
 	default:
 		handler = NewLogstashHandler(
 			writer,
 			&LogstashHandlerOptions{
-				Level:         config.MinLevel,
-				IncludeFields: config.IncludeFields,
-				ExcludeFields: config.ExcludeFields,
+				Level:         cfg.minLevel,
+				IncludeFields: cfg.includeFields,
+				ExcludeFields: cfg.excludeFields,
 			},
 		)
 	}

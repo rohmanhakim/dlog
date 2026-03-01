@@ -1,7 +1,6 @@
 package dlog
 
 import (
-	"fmt"
 	"log/slog"
 )
 
@@ -17,68 +16,39 @@ const (
 	FormatLogfmt Format = "logfmt"
 )
 
-// // The importance or severity of a log event.
-// // Follows slog's Level API.
-// type Level int
+// config holds configuration for debug logging (internal).
+type config struct {
+	// minLevel is the minimum log level.
+	minLevel slog.Level
 
-// // Names for common levels.
-// // Follows slog's Level API.
-// const (
-// 	LevelDebug Level = -4
-// 	LevelInfo  Level = 0
-// 	LevelWarn  Level = 4
-// 	LevelError Level = 8
-// )
+	// includeFields filters fields to include (empty = all).
+	includeFields []string
 
-// DebugConfig holds configuration for debug logging.
-type DebugConfig struct {
-	// Enabled controls whether debug logging is active.
-	Enabled bool
-
-	MinLevel slog.Level
-
-	// OutputFile is the path to write debug logs.
-	// Empty means stdout only.
-	OutputFile string
-
-	// Format controls output format: "json" or "text".
-	Format Format
-
-	// IncludeFields filters fields to include (empty = all).
-	IncludeFields []string
-
-	// ExcludeFields filters fields to exclude.
-	ExcludeFields []string
+	// excludeFields filters fields to exclude.
+	excludeFields []string
 }
 
-// NewDebugConfig creates a DebugConfig.
-// Default will use LevelDebug for all downstream loggings.
-func NewDebugConfig(enabled bool, loggerName string, outputFile string, format Format) (DebugConfig, error) {
-	return DebugConfig{
-		Enabled:       enabled,
-		MinLevel:      slog.LevelDebug,
-		OutputFile:    outputFile,
-		Format:        format,
-		IncludeFields: []string{},
-		ExcludeFields: []string{},
-	}, nil
-}
+// Option is a functional option for configuring the logger.
+type Option func(*config)
 
-// parseFormat parses a format string and returns the corresponding Format.
-func parseFormat(format string) (Format, error) {
-	if format == "" {
-		return FormatJSON, nil
-	}
-
-	switch Format(format) {
-	case FormatJSON, FormatText, FormatLogfmt:
-		return Format(format), nil
-	default:
-		return "", fmt.Errorf("invalid debug format: %s (valid: json, text, logfmt)", format)
+// WithMinLevel sets the minimum log level.
+func WithMinLevel(level slog.Level) Option {
+	return func(c *config) {
+		c.minLevel = level
 	}
 }
 
-// IsFileOutput returns true if file output is configured.
-func (c DebugConfig) IsFileOutput() bool {
-	return c.OutputFile != ""
+// WithIncludeFields sets the fields to include in log output.
+// If specified, only these fields will be included.
+func WithIncludeFields(fields []string) Option {
+	return func(c *config) {
+		c.includeFields = fields
+	}
+}
+
+// WithExcludeFields sets the fields to exclude from log output.
+func WithExcludeFields(fields []string) Option {
+	return func(c *config) {
+		c.excludeFields = fields
+	}
 }

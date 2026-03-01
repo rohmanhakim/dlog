@@ -9,30 +9,16 @@ import (
 )
 
 func main() {
-	// Initialize debug logger based on config
-	var logstashLogger dlog.DebugLogger = dlog.NewNoOpLogger()
-	var textLogger dlog.DebugLogger = dlog.NewNoOpLogger()
-
-	logstashConfig, err := dlog.NewDebugConfig(true, "MyJSONLogger", "test-output.jsonl", dlog.FormatJSON)
+	logstashLogger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "test-output.jsonl")
 	if err != nil {
-		log.Printf("failed to create debug config: %v, using NoOpLogger", err)
-	} else {
-		logstashLogger, err = dlog.NewSlogLogger(logstashConfig)
-		if err != nil {
-			log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
-			logstashLogger = dlog.NewNoOpLogger()
-		}
+		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
+		logstashLogger = dlog.NewNoOpLogger()
 	}
 
-	textConfig, err := dlog.NewDebugConfig(true, "MyTextLogger", "test-output.txt", dlog.FormatText)
+	textLogger, err := dlog.NewSlogLogger(true, dlog.FormatText, "test-output.txt")
 	if err != nil {
-		log.Printf("failed to create debug config: %v, using NoOpLogger", err)
-	} else {
-		textLogger, err = dlog.NewSlogLogger(textConfig)
-		if err != nil {
-			log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
-			textLogger = dlog.NewNoOpLogger()
-		}
+		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
+		textLogger = dlog.NewNoOpLogger()
 	}
 
 	ctx := context.Background()
