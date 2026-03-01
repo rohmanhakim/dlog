@@ -1,0 +1,6 @@
+example/simple_logging/simple_logging
+example/simple_logging/test-output.jsonl
+example/simple_logging/test-output.txt
+example/field_logging/field_logging
+example/field_logging/test-output.jsonl
+example/field_logging/test-output.txt
