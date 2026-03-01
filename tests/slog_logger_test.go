@@ -141,6 +141,50 @@ func TestSlogLogger_LogError(t *testing.T) {
 	// Verify no panic and method works
 }
 
+func TestSlogLogger_LogError_NilError(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "nil-error-test.jsonl")
+
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+	defer logger.Close()
+
+	ctx := context.Background()
+
+	// This should not panic when err is nil
+	logger.LogError(ctx, "test message", nil, dlog.FieldMap{"key": "value"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Verify message is logged correctly (not hardcoded "Error occurred")
+	if entry["message"] != "test message" {
+		t.Errorf("expected message='test message', got %v", entry["message"])
+	}
+
+	// Verify error field is not present when err is nil
+	if _, ok := entry["error"]; ok {
+		t.Errorf("expected no error field when err is nil, but got: %v", entry["error"])
+	}
+
+	// Verify other fields are present
+	if entry["key"] != "value" {
+		t.Errorf("expected key=value, got %v", entry["key"])
+	}
+}
+
 func TestSlogLogger_WithFields(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
 	if err != nil {

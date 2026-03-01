@@ -113,5 +113,5 @@ func main() {
 	logger4.LogDebug(ctx, "This won't be logged") // Below minimum level
 	logger4.LogInfo(ctx, "This won't be logged")  // Below minimum level
 	logger4.LogWarn(ctx, "This will be logged")   // At or above minimum level
-	logger4.LogError(ctx, "stage", context.Canceled)
+	logger4.LogError(ctx, "Error Occured: ", context.Canceled)
 }

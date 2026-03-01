@@ -132,9 +132,12 @@ func (s *SlogLogger) LogWarn(ctx context.Context, message string, fieldMap ...Fi
 }
 
 // LogError logs a debug-level error with context.
-func (s *SlogLogger) LogError(ctx context.Context, stage string, err error, fieldMap ...FieldMap) {
-	attrs := []slog.Attr{
-		slog.String("error", err.Error()),
+func (s *SlogLogger) LogError(ctx context.Context, message string, err error, fieldMap ...FieldMap) {
+	attrs := []slog.Attr{}
+
+	// Add error attribute with nil check
+	if err != nil {
+		attrs = append(attrs, slog.String("error", err.Error()))
 	}
 
 	// Add pre-populated fields
@@ -148,7 +151,7 @@ func (s *SlogLogger) LogError(ctx context.Context, stage string, err error, fiel
 		}
 	}
 
-	s.logger.LogAttrs(ctx, slog.LevelError, "Error occurred", attrs...)
+	s.logger.LogAttrs(ctx, slog.LevelError, message, attrs...)
 }
 
 // WithFields returns a logger with pre-populated fields.
