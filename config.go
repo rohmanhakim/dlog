@@ -13,6 +13,8 @@ const (
 	FormatJSON Format = "json"
 	// FormatText outputs logs in human-readable text format.
 	FormatText Format = "text"
+	// FormatLogfmt outputs logs in logfmt format (key=value pairs).
+	FormatLogfmt Format = "logfmt"
 )
 
 // // The importance or severity of a log event.
@@ -69,10 +71,10 @@ func parseFormat(format string) (Format, error) {
 	}
 
 	switch Format(format) {
-	case FormatJSON, FormatText:
+	case FormatJSON, FormatText, FormatLogfmt:
 		return Format(format), nil
 	default:
-		return "", fmt.Errorf("invalid debug format: %s (valid: json, text)", format)
+		return "", fmt.Errorf("invalid debug format: %s (valid: json, text, logfmt)", format)
 	}
 }
 

@@ -38,6 +38,13 @@ func NewSlogLogger(config DebugConfig) (DebugLogger, error) {
 				Level: config.MinLevel,
 			},
 		)
+	case FormatLogfmt:
+		handler = NewLogfmtHandler(
+			writer,
+			&LogfmtHandlerOptions{
+				Level: config.MinLevel,
+			},
+		)
 	default:
 		handler = NewLogstashHandler(
 			writer,
