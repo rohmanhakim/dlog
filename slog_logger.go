@@ -9,10 +9,9 @@ import (
 // It provides structured logging with domain-specific methods for pipeline stages,
 // retry attempts, and rate limiting decisions.
 type SlogLogger struct {
-	logger   *slog.Logger
-	enabled  bool
-	preAttrs FieldMap
-	closer   func() error
+	logger  *slog.Logger
+	enabled bool
+	closer  func() error
 }
 
 // NewSlogLogger creates a new SlogLogger with the given configuration.
@@ -74,83 +73,70 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 		logger = logger.WithGroup(cfg.groupName)
 	}
 
+	// Apply pre-populated fields using slog's built-in With() for optimal performance
+	// Convert FieldMap to alternating key-value pairs for logger.With()
+	if len(cfg.preAttrs) > 0 {
+		args := make([]any, 0, len(cfg.preAttrs)*2)
+		for k, v := range cfg.preAttrs {
+			args = append(args, k, v)
+		}
+		logger = logger.With(args...)
+	}
+
 	return &SlogLogger{
-		logger:   logger,
-		enabled:  true,
-		preAttrs: cfg.preAttrs,
-		closer:   writer.Close,
+		logger:  logger,
+		enabled: true,
+		closer:  writer.Close,
 	}, nil
 }
 
 // Enabled returns true if debug logging is enabled.
 func (s *SlogLogger) Enabled() bool { return s.enabled }
 
-// LogError logs a debug-level message with context.
+// LogDebug logs a debug-level message with context.
+// Pre-populated fields from WithFields are already baked into the logger.
 func (s *SlogLogger) LogDebug(ctx context.Context, message string, fieldMap ...FieldMap) {
-	attrs := []slog.Attr{}
-
-	// Add pre-populated fields
-	for k, v := range s.preAttrs {
-		attrs = append(attrs, slog.Any(k, v))
-	}
-
+	attrs := make([]slog.Attr, 0, len(fieldMap))
 	for _, fm := range fieldMap {
 		for k, v := range fm {
 			attrs = append(attrs, slog.Any(k, v))
 		}
 	}
-
 	s.logger.LogAttrs(ctx, slog.LevelDebug, message, attrs...)
 }
 
 // LogInfo logs an info-level message with context.
+// Pre-populated fields from WithFields are already baked into the logger.
 func (s *SlogLogger) LogInfo(ctx context.Context, message string, fieldMap ...FieldMap) {
-	attrs := []slog.Attr{}
-
-	// Add pre-populated fields
-	for k, v := range s.preAttrs {
-		attrs = append(attrs, slog.Any(k, v))
-	}
-
+	attrs := make([]slog.Attr, 0, len(fieldMap))
 	for _, fm := range fieldMap {
 		for k, v := range fm {
 			attrs = append(attrs, slog.Any(k, v))
 		}
 	}
-
 	s.logger.LogAttrs(ctx, slog.LevelInfo, message, attrs...)
 }
 
-// LogError logs a warn-level message with context.
+// LogWarn logs a warn-level message with context.
+// Pre-populated fields from WithFields are already baked into the logger.
 func (s *SlogLogger) LogWarn(ctx context.Context, message string, fieldMap ...FieldMap) {
-	attrs := []slog.Attr{}
-
-	// Add pre-populated fields
-	for k, v := range s.preAttrs {
-		attrs = append(attrs, slog.Any(k, v))
-	}
-
+	attrs := make([]slog.Attr, 0, len(fieldMap))
 	for _, fm := range fieldMap {
 		for k, v := range fm {
 			attrs = append(attrs, slog.Any(k, v))
 		}
 	}
-
 	s.logger.LogAttrs(ctx, slog.LevelWarn, message, attrs...)
 }
 
-// LogError logs a debug-level error with context.
+// LogError logs an error-level message with context.
+// Pre-populated fields from WithFields are already baked into the logger.
 func (s *SlogLogger) LogError(ctx context.Context, message string, err error, fieldMap ...FieldMap) {
-	attrs := []slog.Attr{}
+	attrs := make([]slog.Attr, 0, 1+len(fieldMap))
 
 	// Add error attribute with nil check
 	if err != nil {
 		attrs = append(attrs, slog.String("error", err.Error()))
-	}
-
-	// Add pre-populated fields
-	for k, v := range s.preAttrs {
-		attrs = append(attrs, slog.Any(k, v))
 	}
 
 	for _, fm := range fieldMap {
@@ -163,30 +149,27 @@ func (s *SlogLogger) LogError(ctx context.Context, message string, err error, fi
 }
 
 // WithFields returns a logger with pre-populated fields.
+// Fields are baked into the slog.Logger for optimal performance.
 func (s *SlogLogger) WithFields(fields FieldMap) DebugLogger {
-	merged := make(FieldMap)
-	for k, v := range s.preAttrs {
-		merged[k] = v
-	}
+	// Convert FieldMap to alternating key-value pairs for logger.With()
+	args := make([]any, 0, len(fields)*2)
 	for k, v := range fields {
-		merged[k] = v
+		args = append(args, k, v)
 	}
 
 	return &SlogLogger{
-		logger:   s.logger,
-		enabled:  s.enabled,
-		preAttrs: merged,
-		closer:   s.closer,
+		logger:  s.logger.With(args...),
+		enabled: s.enabled,
+		closer:  s.closer,
 	}
 }
 
 // WithGroup returns a logger with all subsequent attributes grouped under the given name.
 func (s *SlogLogger) WithGroup(name string) DebugLogger {
 	return &SlogLogger{
-		logger:   s.logger.WithGroup(name),
-		enabled:  s.enabled,
-		preAttrs: s.preAttrs,
-		closer:   s.closer,
+		logger:  s.logger.WithGroup(name),
+		enabled: s.enabled,
+		closer:  s.closer,
 	}
 }
 

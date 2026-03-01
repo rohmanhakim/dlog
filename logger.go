@@ -14,10 +14,10 @@ type DebugLogger interface {
 	// LogDebug logs string message with slog.Level = LevelDebug.
 	LogDebug(ctx context.Context, message string, fieldMap ...FieldMap)
 
-	// LogDebug logs string message with slog.Level = LevelInfo.
+	// LogInfo logs string message with slog.Level = LevelInfo.
 	LogInfo(ctx context.Context, message string, fieldMap ...FieldMap)
 
-	// LogDebug logs string message with slog.Level = LevelWarn.
+	// LogWarn logs string message with slog.Level = LevelWarn.
 	LogWarn(ctx context.Context, message string, fieldMap ...FieldMap)
 
 	// LogError logs string message with slog.level = LevelError.
