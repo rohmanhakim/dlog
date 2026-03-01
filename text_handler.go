@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"slices"
 	"strings"
 	"sync"
 )
@@ -14,31 +13,28 @@ import (
 //
 // Implements [slog.Handler] interface.
 type TextHandler struct {
-	mu            sync.Mutex
-	w             io.Writer
-	level         slog.Level
-	attrs         []slog.Attr
-	includeFields []string
-	excludeFields []string
+	mu          sync.Mutex
+	w           io.Writer
+	level       slog.Level
+	attrs       []slog.Attr
+	fieldFilter *fieldFilter
 }
 
 // NewTextHandler creates a new TextHandler writing to the specified writer.
 func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
 	level := slog.LevelDebug // default level
-	var includeFields, excludeFields []string
+	var ff *fieldFilter
 
 	// Only override default if opts is provided
 	if opts != nil {
 		level = opts.Level
-		includeFields = opts.IncludeFields
-		excludeFields = opts.ExcludeFields
+		ff = newFieldFilter(opts.IncludeFields, opts.ExcludeFields)
 	}
 
 	return &TextHandler{
-		w:             w,
-		level:         level,
-		includeFields: includeFields,
-		excludeFields: excludeFields,
+		w:           w,
+		level:       level,
+		fieldFilter: ff,
 	}
 }
 
@@ -105,12 +101,11 @@ func (h *TextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 
 	newHandler := &TextHandler{
-		w:             h.w,
-		level:         h.level,
-		attrs:         slices.Clone(h.attrs),
-		includeFields: h.includeFields,
-		excludeFields: h.excludeFields,
+		w:           h.w,
+		level:       h.level,
+		fieldFilter: h.fieldFilter,
 	}
+	newHandler.attrs = append(newHandler.attrs, h.attrs...)
 	newHandler.attrs = append(newHandler.attrs, attrs...)
 	return newHandler
 }
@@ -138,11 +133,11 @@ func formatField(key string, value slog.Value) string {
 
 // filterFieldList applies include/exclude field filtering to a list of key=value strings.
 func (h *TextHandler) filterFieldList(fields []string) []string {
-	if len(h.includeFields) == 0 && len(h.excludeFields) == 0 {
+	if h.fieldFilter == nil {
 		return fields
 	}
 
-	result := make([]string, 0)
+	result := make([]string, 0, len(fields))
 	for _, field := range fields {
 		// Extract key from "key=value" format
 		idx := strings.Index(field, "=")
@@ -152,17 +147,9 @@ func (h *TextHandler) filterFieldList(fields []string) []string {
 		}
 		key := field[:idx]
 
-		// Check exclude list first
-		if slices.Contains(h.excludeFields, key) {
-			continue
+		if h.fieldFilter.shouldInclude(key) {
+			result = append(result, field)
 		}
-
-		// Check include list (if specified)
-		if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
-			continue
-		}
-
-		result = append(result, field)
 	}
 
 	return result

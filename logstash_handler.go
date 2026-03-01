@@ -4,7 +4,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"slices"
 	"strings"
 )
 
@@ -18,22 +17,20 @@ import (
 //
 // Implements [slog.Handler] interface.
 type LogstashHandler struct {
-	jsonHandler   *slog.JSONHandler
-	includeFields []string
-	excludeFields []string
-	groups        []string
-	attrs         []slog.Attr
+	jsonHandler *slog.JSONHandler
+	fieldFilter *fieldFilter
+	groups      []string
+	attrs       []slog.Attr
 }
 
 // NewLogstashHandler creates a new LogstashHandler writing to the specified writer.
 func NewLogstashHandler(w io.Writer, opts *HandlerOptions) *LogstashHandler {
 	level := slog.LevelDebug // default level
-	var includeFields, excludeFields []string
+	var ff *fieldFilter
 
 	if opts != nil {
 		level = opts.Level
-		includeFields = opts.IncludeFields
-		excludeFields = opts.ExcludeFields
+		ff = newFieldFilter(opts.IncludeFields, opts.ExcludeFields)
 	}
 
 	// Use a JSONHandler with ReplaceAttr for Logstash field naming
@@ -57,9 +54,8 @@ func NewLogstashHandler(w io.Writer, opts *HandlerOptions) *LogstashHandler {
 	})
 
 	return &LogstashHandler{
-		jsonHandler:   jsonHandler,
-		includeFields: includeFields,
-		excludeFields: excludeFields,
+		jsonHandler: jsonHandler,
+		fieldFilter: ff,
 	}
 }
 
@@ -130,25 +126,27 @@ func (h *LogstashHandler) flattenAndFilterAttrs(attrs []slog.Attr, attr slog.Att
 	return append(attrs, slog.Attr{Key: fullKey, Value: attr.Value})
 }
 
+// builtinFields are fields that are always included (handled by ReplaceAttr)
+var builtinFields = map[string]struct{}{
+	"time":       {},
+	"level":      {},
+	"msg":        {},
+	"@timestamp": {},
+	"log.level":  {},
+	"message":    {},
+}
+
 // shouldIncludeField checks if a field should be included based on include/exclude lists.
 func (h *LogstashHandler) shouldIncludeField(key string) bool {
-	// Built-in fields (these are handled by ReplaceAttr)
-	builtins := []string{"time", "level", "msg", "@timestamp", "log.level", "message"}
-	if slices.Contains(builtins, key) {
+	// Built-in fields are always included
+	if _, isBuiltin := builtinFields[key]; isBuiltin {
 		return true
 	}
 
-	// Check exclude list first
-	if slices.Contains(h.excludeFields, key) {
-		return false
+	if h.fieldFilter == nil {
+		return true
 	}
-
-	// Check include list (if specified)
-	if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
-		return false
-	}
-
-	return true
+	return h.fieldFilter.shouldInclude(key)
 }
 
 // WithAttrs returns a new handler with the given attributes added.
@@ -157,12 +155,15 @@ func (h *LogstashHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		return h
 	}
 
+	newAttrs := make([]slog.Attr, len(h.attrs)+len(attrs))
+	copy(newAttrs, h.attrs)
+	copy(newAttrs[len(h.attrs):], attrs)
+
 	return &LogstashHandler{
-		jsonHandler:   h.jsonHandler,
-		includeFields: h.includeFields,
-		excludeFields: h.excludeFields,
-		groups:        h.groups,
-		attrs:         append(slices.Clone(h.attrs), attrs...),
+		jsonHandler: h.jsonHandler,
+		fieldFilter: h.fieldFilter,
+		groups:      h.groups,
+		attrs:       newAttrs,
 	}
 }
 
@@ -172,11 +173,14 @@ func (h *LogstashHandler) WithGroup(name string) slog.Handler {
 		return h
 	}
 
+	newGroups := make([]string, len(h.groups)+1)
+	copy(newGroups, h.groups)
+	newGroups[len(h.groups)] = name
+
 	return &LogstashHandler{
-		jsonHandler:   h.jsonHandler,
-		includeFields: h.includeFields,
-		excludeFields: h.excludeFields,
-		groups:        append(slices.Clone(h.groups), name),
-		attrs:         h.attrs,
+		jsonHandler: h.jsonHandler,
+		fieldFilter: h.fieldFilter,
+		groups:      newGroups,
+		attrs:       h.attrs,
 	}
 }

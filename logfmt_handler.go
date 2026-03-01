@@ -5,7 +5,6 @@ import (
 	"context"
 	"io"
 	"log/slog"
-	"slices"
 	"sync"
 
 	"github.com/go-logfmt/logfmt"
@@ -16,31 +15,28 @@ import (
 //
 // Implements [slog.Handler] interface.
 type LogfmtHandler struct {
-	mu            sync.Mutex
-	w             io.Writer
-	level         slog.Level
-	attrs         []slog.Attr
-	includeFields []string
-	excludeFields []string
+	mu          sync.Mutex
+	w           io.Writer
+	level       slog.Level
+	attrs       []slog.Attr
+	fieldFilter *fieldFilter
 }
 
 // NewLogfmtHandler creates a new LogfmtHandler writing to the specified writer.
 func NewLogfmtHandler(w io.Writer, opts *HandlerOptions) *LogfmtHandler {
 	level := slog.LevelDebug // default level
-	var includeFields, excludeFields []string
+	var ff *fieldFilter
 
 	// Only override default if opts is provided
 	if opts != nil {
 		level = opts.Level
-		includeFields = opts.IncludeFields
-		excludeFields = opts.ExcludeFields
+		ff = newFieldFilter(opts.IncludeFields, opts.ExcludeFields)
 	}
 
 	return &LogfmtHandler{
-		w:             w,
-		level:         level,
-		includeFields: includeFields,
-		excludeFields: excludeFields,
+		w:           w,
+		level:       level,
+		fieldFilter: ff,
 	}
 }
 
@@ -109,17 +105,10 @@ func (h *LogfmtHandler) Handle(_ context.Context, r slog.Record) error {
 
 // shouldIncludeField checks if a field should be included based on include/exclude lists.
 func (h *LogfmtHandler) shouldIncludeField(key string) bool {
-	// Check exclude list first
-	if slices.Contains(h.excludeFields, key) {
-		return false
+	if h.fieldFilter == nil {
+		return true
 	}
-
-	// Check include list (if specified)
-	if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
-		return false
-	}
-
-	return true
+	return h.fieldFilter.shouldInclude(key)
 }
 
 // WithAttrs returns a new handler with the given attributes added.
@@ -129,12 +118,11 @@ func (h *LogfmtHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 
 	newHandler := &LogfmtHandler{
-		w:             h.w,
-		level:         h.level,
-		attrs:         slices.Clone(h.attrs),
-		includeFields: h.includeFields,
-		excludeFields: h.excludeFields,
+		w:           h.w,
+		level:       h.level,
+		fieldFilter: h.fieldFilter,
 	}
+	newHandler.attrs = append(newHandler.attrs, h.attrs...)
 	newHandler.attrs = append(newHandler.attrs, attrs...)
 	return newHandler
 }
