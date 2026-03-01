@@ -54,11 +54,17 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 	}
 
 	switch format {
+	case FormatJSON:
+		// Standard slog.JSONHandler (nested groups)
+		handler = slog.NewJSONHandler(writer, &slog.HandlerOptions{
+			Level: cfg.minLevel,
+		})
 	case FormatText:
 		handler = NewTextHandler(writer, handlerOpts)
 	case FormatLogfmt:
 		handler = NewLogfmtHandler(writer, handlerOpts)
-	default:
+	case FormatLogstash:
+		// Logstash-compatible format (flattened groups, renamed fields)
 		handler = NewLogstashHandler(writer, handlerOpts)
 	}
 

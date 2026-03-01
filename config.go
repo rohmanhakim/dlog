@@ -23,12 +23,16 @@ const (
 type Format string
 
 const (
-	// FormatJSON outputs logs in JSON format (Logstash/Elasticsearch compatible).
+	// FormatJSON outputs logs in standard JSON format using slog.JSONHandler.
+	// Fields: time, level, msg with nested group objects.
 	FormatJSON Format = "json"
 	// FormatText outputs logs in human-readable text format.
 	FormatText Format = "text"
 	// FormatLogfmt outputs logs in logfmt format (key=value pairs).
 	FormatLogfmt Format = "logfmt"
+	// FormatLogstash outputs logs in Logstash/Elasticsearch compatible JSON format.
+	// Fields: @timestamp, log.level, message with flattened group keys (e.g., request.id).
+	FormatLogstash Format = "logstash"
 )
 
 // config holds configuration for debug logging (internal).

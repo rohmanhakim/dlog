@@ -1,6 +1,9 @@
 example/simple_logging/simple_logging
 example/simple_logging/test-output.jsonl
+example/simple_logging/test-output.json
 example/simple_logging/test-output.txt
+example/simple_logging/test-output.logfmt
+example/simple_logging/test-output-logstash.json
 example/field_logging/field_logging
 example/field_logging/test-output.jsonl
 example/field_logging/test-output.txt

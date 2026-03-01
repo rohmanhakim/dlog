@@ -10,12 +10,38 @@ import (
 func main() {
 	ctx := context.Background()
 
+	// =========================================================================
+	// FormatJSON vs FormatLogstash - Understanding the difference
+	// =========================================================================
+
+	// FormatJSON uses standard slog.JSONHandler with NESTED groups:
+	// Output: {"time":"...","level":"INFO","msg":"...","request":{"id":"abc","method":"GET"}}
+	jsonLogger, _ := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
+	defer jsonLogger.Close()
+
+	jsonGrouped := jsonLogger.WithGroup("request")
+	jsonGrouped.LogInfo(ctx, "JSON format - nested group", dlog.FieldMap{
+		"id":     "abc123",
+		"method": "GET",
+	})
+
+	// FormatLogstash uses FLATTENED groups with dot notation:
+	// Output: {"@timestamp":"...","log.level":"INFO","message":"...","request.id":"abc","request.method":"GET"}
+	logstashLogger, _ := dlog.NewSlogLogger(true, dlog.FormatLogstash, "")
+	defer logstashLogger.Close()
+
+	logstashGrouped := logstashLogger.WithGroup("request")
+	logstashGrouped.LogInfo(ctx, "Logstash format - flattened group", dlog.FieldMap{
+		"id":     "abc123",
+		"method": "GET",
+	})
+
+	// =========================================================================
 	// Pattern 1: WithFields - Pre-populate fields on the logger
-	// Use this when you want to create a logger with persistent fields
-	// that will be included in all log messages from that logger
+	// =========================================================================
 	logger1, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatJSON,
+		dlog.FormatLogstash,
 		"",
 		dlog.WithFields(dlog.FieldMap{
 			"service.name":    "billing-api",
@@ -28,11 +54,12 @@ func main() {
 		"port": 8080,
 	})
 
+	// =========================================================================
 	// Pattern 2: WithGroup - Group fields under a namespace
-	// Use this to organize related fields under a common prefix
+	// =========================================================================
 	logger2, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatJSON,
+		dlog.FormatLogstash,
 		"",
 	)
 	defer logger2.Close()
@@ -43,17 +70,14 @@ func main() {
 		"path":   "/api/v1/orders",
 	})
 
+	// =========================================================================
 	// Pattern 3: Field Filtering - Include/exclude specific fields
-	// Use this to control which fields appear in the output
-	// This is useful for:
-	// - Security: excluding sensitive fields like passwords, tokens
-	// - Performance: including only essential fields in high-volume logs
-	// - Compliance: ensuring PII is never logged
+	// =========================================================================
 
 	// 3a: Exclude sensitive fields
 	logger3a, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatJSON,
+		dlog.FormatLogstash,
 		"",
 		dlog.WithExcludeFields([]string{"password", "token", "secret"}),
 	)
@@ -65,10 +89,10 @@ func main() {
 		"success":  true,
 	})
 
-	// 3b: Include only specific fields (plus core fields)
+	// 3b: Include only specific fields
 	logger3b, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatJSON,
+		dlog.FormatLogstash,
 		"",
 		dlog.WithIncludeFields([]string{
 			"service.name", "service.version", "request.id", "user.id",
@@ -87,7 +111,7 @@ func main() {
 	// 3c: Combine WithGroup and WithFields
 	logger3c, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatJSON,
+		dlog.FormatLogstash,
 		"",
 		dlog.WithFields(dlog.FieldMap{
 			"service": "api-gateway",
@@ -101,7 +125,9 @@ func main() {
 		"path":   "/health",
 	})
 
+	// =========================================================================
 	// Pattern 4: Minimum level filtering
+	// =========================================================================
 	logger4, _ := dlog.NewSlogLogger(
 		true,
 		dlog.FormatText,
@@ -113,5 +139,5 @@ func main() {
 	logger4.LogDebug(ctx, "This won't be logged") // Below minimum level
 	logger4.LogInfo(ctx, "This won't be logged")  // Below minimum level
 	logger4.LogWarn(ctx, "This will be logged")   // At or above minimum level
-	logger4.LogError(ctx, "Error Occured: ", context.Canceled)
+	logger4.LogError(ctx, "Error Occurred: ", context.Canceled)
 }

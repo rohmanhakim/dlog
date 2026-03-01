@@ -2,32 +2,27 @@ package dlog
 
 import (
 	"context"
-	"encoding/json"
 	"io"
 	"log/slog"
 	"slices"
 	"strings"
-	"sync"
-	"time"
 )
 
-// encodeJSON marshals a map to JSON bytes.
-func encodeJSON(m map[string]any) ([]byte, error) {
-	return json.Marshal(m)
-}
-
 // LogstashHandler is a custom slog.Handler that outputs logs in Logstash/Elasticsearch
-// compatible JSON format as specified in the design document.
+// compatible JSON format. It wraps slog.JSONHandler for optimal performance.
+//
+// Key differences from standard JSONHandler:
+//   - Field names: @timestamp, log.level, message (instead of time, level, msg)
+//   - Groups are flattened with dot notation (e.g., request.id instead of request: {id: ...})
+//   - Supports field filtering via include/exclude lists
 //
 // Implements [slog.Handler] interface.
 type LogstashHandler struct {
-	mu            sync.Mutex
-	w             io.Writer
-	level         slog.Level
-	attrs         []slog.Attr
-	groups        []string
+	jsonHandler   *slog.JSONHandler
 	includeFields []string
 	excludeFields []string
+	groups        []string
+	attrs         []slog.Attr
 }
 
 // NewLogstashHandler creates a new LogstashHandler writing to the specified writer.
@@ -35,62 +30,125 @@ func NewLogstashHandler(w io.Writer, opts *HandlerOptions) *LogstashHandler {
 	level := slog.LevelDebug // default level
 	var includeFields, excludeFields []string
 
-	// Only override default if opts is provided
 	if opts != nil {
 		level = opts.Level
 		includeFields = opts.IncludeFields
 		excludeFields = opts.ExcludeFields
 	}
 
+	// Use a JSONHandler with ReplaceAttr for Logstash field naming
+	jsonHandler := slog.NewJSONHandler(w, &slog.HandlerOptions{
+		Level: level,
+		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
+			// Rename time -> @timestamp
+			if a.Key == slog.TimeKey {
+				a.Key = "@timestamp"
+			}
+			// Rename level -> log.level
+			if a.Key == slog.LevelKey {
+				a.Key = "log.level"
+			}
+			// Rename msg -> message
+			if a.Key == slog.MessageKey {
+				a.Key = "message"
+			}
+			return a
+		},
+	})
+
 	return &LogstashHandler{
-		w:             w,
-		level:         level,
+		jsonHandler:   jsonHandler,
 		includeFields: includeFields,
 		excludeFields: excludeFields,
 	}
 }
 
 // Enabled returns true if the handler should log at the given level.
-func (h *LogstashHandler) Enabled(_ context.Context, level slog.Level) bool {
-	return level >= h.level
+func (h *LogstashHandler) Enabled(ctx context.Context, level slog.Level) bool {
+	return h.jsonHandler.Enabled(ctx, level)
 }
 
 // Handle processes the log record and writes it in Logstash JSON format.
-func (h *LogstashHandler) Handle(_ context.Context, r slog.Record) error {
-	// Build the log entry following the design document structure
-	entry := map[string]any{
-		"@timestamp": r.Time.Format(time.RFC3339Nano),
-		"log.level":  r.Level.String(),
-		"message":    r.Message,
+// It flattens groups and renames standard fields before delegating to JSONHandler.
+func (h *LogstashHandler) Handle(ctx context.Context, r slog.Record) error {
+	// Build a new record with flattened attrs
+	newRecord := slog.NewRecord(r.Time, r.Level, r.Message, r.PC)
+
+	// Collect and flatten all attrs
+	var flattenedAttrs []slog.Attr
+
+	// Add handler attrs with group prefix
+	prefix := ""
+	if len(h.groups) > 0 {
+		prefix = strings.Join(h.groups, ".")
 	}
 
-	// Add attrs from handler context
 	for _, attr := range h.attrs {
-		h.addField(entry, attr.Key, attr.Value)
+		flattenedAttrs = h.flattenAndFilterAttrs(flattenedAttrs, attr, prefix)
 	}
 
-	// Add attrs from the record
+	// Add record attrs
 	r.Attrs(func(attr slog.Attr) bool {
-		h.addField(entry, attr.Key, attr.Value)
+		flattenedAttrs = h.flattenAndFilterAttrs(flattenedAttrs, attr, prefix)
 		return true
 	})
 
-	// Apply field filtering using the shared function
-	entry = FilterFields(entry, h.includeFields, h.excludeFields)
+	// Add all flattened attrs to new record
+	newRecord.AddAttrs(flattenedAttrs...)
 
-	// Marshal to JSON first, then lock only for the write
-	jsonData, err := encodeJSON(entry)
-	if err != nil {
-		return err
+	return h.jsonHandler.Handle(ctx, newRecord)
+}
+
+// flattenAndFilterAttrs recursively flattens group attrs and applies field filtering.
+func (h *LogstashHandler) flattenAndFilterAttrs(attrs []slog.Attr, attr slog.Attr, prefix string) []slog.Attr {
+	// Build full key
+	fullKey := attr.Key
+	if prefix != "" {
+		fullKey = prefix + "." + attr.Key
 	}
 
-	// Add newline
-	output := append(jsonData, '\n')
+	// Handle groups by flattening
+	if attr.Value.Kind() == slog.KindGroup {
+		groupAttrs := attr.Value.Group()
+		for _, ga := range groupAttrs {
+			attrs = h.flattenAndFilterAttrs(attrs, ga, fullKey)
+		}
+		return attrs
+	}
 
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	_, err = h.w.Write(output)
-	return err
+	// Handle LogValuer by resolving the value
+	if attr.Value.Kind() == slog.KindLogValuer {
+		attr.Value = attr.Value.Resolve()
+	}
+
+	// Apply field filtering
+	if !h.shouldIncludeField(fullKey) {
+		return attrs
+	}
+
+	// Add with flattened key
+	return append(attrs, slog.Attr{Key: fullKey, Value: attr.Value})
+}
+
+// shouldIncludeField checks if a field should be included based on include/exclude lists.
+func (h *LogstashHandler) shouldIncludeField(key string) bool {
+	// Built-in fields (these are handled by ReplaceAttr)
+	builtins := []string{"time", "level", "msg", "@timestamp", "log.level", "message"}
+	if slices.Contains(builtins, key) {
+		return true
+	}
+
+	// Check exclude list first
+	if slices.Contains(h.excludeFields, key) {
+		return false
+	}
+
+	// Check include list (if specified)
+	if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
+		return false
+	}
+
+	return true
 }
 
 // WithAttrs returns a new handler with the given attributes added.
@@ -99,9 +157,13 @@ func (h *LogstashHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 		return h
 	}
 
-	newHandler := h.clone()
-	newHandler.attrs = append(newHandler.attrs, attrs...)
-	return newHandler
+	return &LogstashHandler{
+		jsonHandler:   h.jsonHandler,
+		includeFields: h.includeFields,
+		excludeFields: h.excludeFields,
+		groups:        h.groups,
+		attrs:         append(slices.Clone(h.attrs), attrs...),
+	}
 }
 
 // WithGroup returns a new handler with the given group name prepended to attribute keys.
@@ -110,42 +172,11 @@ func (h *LogstashHandler) WithGroup(name string) slog.Handler {
 		return h
 	}
 
-	newHandler := h.clone()
-	newHandler.groups = append(newHandler.groups, name)
-	return newHandler
-}
-
-// clone creates a copy of the handler.
-func (h *LogstashHandler) clone() *LogstashHandler {
 	return &LogstashHandler{
-		w:             h.w,
-		level:         h.level,
-		attrs:         slices.Clone(h.attrs),
-		groups:        slices.Clone(h.groups),
+		jsonHandler:   h.jsonHandler,
 		includeFields: h.includeFields,
 		excludeFields: h.excludeFields,
-	}
-}
-
-// addField adds a field to the entry map, respecting group prefixes.
-func (h *LogstashHandler) addField(entry map[string]any, key string, value slog.Value) {
-	// Build the full key with group prefix
-	fullKey := key
-	if len(h.groups) > 0 {
-		fullKey = strings.Join(h.groups, ".") + "." + key
-	}
-
-	// Handle different value kinds
-	switch value.Kind() {
-	case slog.KindGroup:
-		// For group values, recursively add fields
-		groupAttrs := value.Group()
-		for _, attr := range groupAttrs {
-			h.addField(entry, fullKey+"."+attr.Key, attr.Value)
-		}
-	case slog.KindLogValuer:
-		entry[fullKey] = value.Resolve()
-	default:
-		entry[fullKey] = value.Any()
+		groups:        append(slices.Clone(h.groups), name),
+		attrs:         h.attrs,
 	}
 }

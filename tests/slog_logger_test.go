@@ -61,8 +61,16 @@ func TestNewSlogLogger_Formats(t *testing.T) {
 			format: dlog.FormatJSON,
 		},
 		{
+			name:   "logstash format",
+			format: dlog.FormatLogstash,
+		},
+		{
 			name:   "text format",
 			format: dlog.FormatText,
+		},
+		{
+			name:   "logfmt format",
+			format: dlog.FormatLogfmt,
 		},
 	}
 
@@ -145,7 +153,7 @@ func TestSlogLogger_LogError_NilError(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "nil-error-test.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -278,7 +286,8 @@ func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withgroup-test.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
+	// Use FormatLogstash for flattened group keys
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -321,7 +330,8 @@ func TestSlogLogger_WithGroupChained(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withgroupchained-test.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
+	// Use FormatLogstash for flattened group keys
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -391,7 +401,8 @@ func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "integration-json.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
+	// Use FormatLogstash for @timestamp, log.level, message fields
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
 	if err != nil {
 		t.Fatalf("NewSlogLogger failed: %v", err)
 	}
@@ -521,8 +532,8 @@ func TestSlogLogger_WithGroupOption(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withgroup-option-test.jsonl")
 
-	// Create logger with WithGroup functional option
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+	// Use FormatLogstash for flattened group keys
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile,
 		dlog.WithGroup("myservice"),
 	)
 	if err != nil {
@@ -555,8 +566,8 @@ func TestSlogLogger_WithFieldsAndGroupOptions(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withfields-group-option-test.jsonl")
 
-	// Create logger with both WithFields and WithGroup functional options
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+	// Use FormatLogstash for flattened group keys
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile,
 		dlog.WithFields(dlog.FieldMap{
 			"service": "billing-api",
 		}),
@@ -597,8 +608,8 @@ func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "combined-test.jsonl")
 
-	// Create logger with functional options, then chain method calls
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+	// Use FormatLogstash for flattened group keys
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile,
 		dlog.WithFields(dlog.FieldMap{
 			"service": "billing-api",
 		}),
@@ -636,6 +647,45 @@ func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
 	}
 	if entry["myservice.operation"] != "retry" {
 		t.Errorf("expected myservice.operation=retry, got %v", entry["myservice.operation"])
+	}
+}
+
+func TestSlogLogger_JSONFormat_NestedGroups(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "json-nested-test.jsonl")
+
+	// FormatJSON produces nested structures (standard slog.JSONHandler behavior)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+		dlog.WithGroup("myservice"),
+	)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	ctx := context.Background()
+	logger.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// FormatJSON uses nested objects, not flattened keys
+	myservice, ok := entry["myservice"].(map[string]any)
+	if !ok {
+		t.Fatalf("expected myservice to be a nested object, got %v", entry["myservice"])
+	}
+
+	if myservice["id"] != "abc123" {
+		t.Errorf("expected myservice.id=abc123, got %v", myservice["id"])
 	}
 }
 
