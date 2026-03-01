@@ -3,7 +3,7 @@
 [![codecov](https://codecov.io/gh/rohmanhakim/dlog/graph/badge.svg?token=7noPDnNvgy)](https://codecov.io/gh/rohmanhakim/dlog)
 [![Go Reference](https://pkg.go.dev/badge/github.com/rohmanhakim/dlog.svg)](https://pkg.go.dev/github.com/rohmanhakim/dlog)
 
-A simple, fast, and feature-rich Go package wrapping `log/slog` designed to provide debug logging capable of dual output (stdout and file).
+A simple Go's `log/slog` wrapper designed to provide debug logging capable of dual output (stdout and file).
 
 ## Features
 - **Generic API**: Fully wraps standard `log/slog` types while giving a simplified `DebugLogger` abstraction
