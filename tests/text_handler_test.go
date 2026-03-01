@@ -22,7 +22,7 @@ func TestNewTextHandler_NilOptions(t *testing.T) {
 
 func TestNewTextHandler_WithLevel(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})
 
@@ -87,7 +87,7 @@ func TestTextHandler_Enabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+			handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 				Level: tt.handlerLevel,
 			})
 
@@ -103,7 +103,7 @@ func TestTextHandler_Enabled(t *testing.T) {
 
 func TestTextHandler_Handle(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -135,7 +135,7 @@ func TestTextHandler_Handle(t *testing.T) {
 
 func TestTextHandler_HandleWithFields(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -162,9 +162,103 @@ func TestTextHandler_HandleWithFields(t *testing.T) {
 	}
 }
 
+func TestTextHandler_FieldFiltering(t *testing.T) {
+	tests := []struct {
+		name          string
+		includeFields []string
+		excludeFields []string
+		attrs         []slog.Attr
+		contains      []string
+		notContains   []string
+	}{
+		{
+			name:          "no filtering",
+			includeFields: nil,
+			excludeFields: nil,
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api", "version=1.0"},
+			notContains: nil,
+		},
+		{
+			name:          "exclude fields",
+			includeFields: nil,
+			excludeFields: []string{"version"},
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api"},
+			notContains: []string{"version=1.0"},
+		},
+		{
+			name:          "include fields only",
+			includeFields: []string{"service"},
+			excludeFields: nil,
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api"},
+			notContains: []string{"version=1.0"},
+		},
+		{
+			name:          "include and exclude combined",
+			includeFields: []string{"service", "version"},
+			excludeFields: []string{"version"},
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api"},
+			notContains: []string{"version=1.0"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
+				Level:         slog.LevelDebug,
+				IncludeFields: tt.includeFields,
+				ExcludeFields: tt.excludeFields,
+			})
+
+			ctx := context.Background()
+			now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+			record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+			if len(tt.attrs) > 0 {
+				record.AddAttrs(tt.attrs...)
+			}
+
+			if err := handler.Handle(ctx, record); err != nil {
+				t.Fatalf("Handle failed: %v", err)
+			}
+
+			output := buf.String()
+
+			// Check expected content
+			for _, s := range tt.contains {
+				if !strings.Contains(output, s) {
+					t.Errorf("output should contain %q, got: %s", s, output)
+				}
+			}
+
+			// Check content that should not be present
+			for _, s := range tt.notContains {
+				if strings.Contains(output, s) {
+					t.Errorf("output should not contain %q, got: %s", s, output)
+				}
+			}
+		})
+	}
+}
+
 func TestTextHandler_WithAttrs(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -189,7 +283,7 @@ func TestTextHandler_WithAttrs(t *testing.T) {
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
 	var newBuf bytes.Buffer
-	textHandler := dlog.NewTextHandler(&newBuf, &dlog.TextHandlerOptions{Level: slog.LevelDebug})
+	textHandler := dlog.NewTextHandler(&newBuf, &dlog.HandlerOptions{Level: slog.LevelDebug})
 	handlerWithAttrs := textHandler.WithAttrs([]slog.Attr{
 		slog.String("pre_field", "pre_value"),
 	})
@@ -206,7 +300,7 @@ func TestTextHandler_WithAttrs(t *testing.T) {
 
 func TestTextHandler_WithAttrs_Empty(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -220,7 +314,7 @@ func TestTextHandler_WithAttrs_Empty(t *testing.T) {
 
 func TestTextHandler_WithGroup(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -292,7 +386,7 @@ func TestTextHandler_Format(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewTextHandler(&buf, &dlog.TextHandlerOptions{
+			handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
 				Level: slog.LevelDebug,
 			})
 

@@ -32,12 +32,11 @@ type LogstashHandler struct {
 }
 
 // NewLogstashHandler creates a new LogstashHandler writing to the specified writer.
-func NewLogstashHandler(w io.Writer, opts *LogstashHandlerOptions) *LogstashHandler {
+func NewLogstashHandler(w io.Writer, opts *HandlerOptions) *LogstashHandler {
 	level := slog.LevelDebug // default level
 	var includeFields, excludeFields []string
 
 	// Only override default if opts is provided
-	// Note: slog.LevelInfo = 0, so we accept the user's level even if it's 0
 	if opts != nil {
 		level = opts.Level
 		includeFields = opts.IncludeFields
@@ -50,18 +49,6 @@ func NewLogstashHandler(w io.Writer, opts *LogstashHandlerOptions) *LogstashHand
 		includeFields: includeFields,
 		excludeFields: excludeFields,
 	}
-}
-
-// LogstashHandlerOptions configures the LogstashHandler.
-type LogstashHandlerOptions struct {
-	// Level is the minimum log level to output.
-	Level slog.Level
-
-	// IncludeFields filters fields to include (empty = all).
-	IncludeFields []string
-
-	// ExcludeFields filters fields to exclude.
-	ExcludeFields []string
 }
 
 // Enabled returns true if the handler should log at the given level.
@@ -94,8 +81,8 @@ func (h *LogstashHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
-	// Apply field filtering
-	entry = h.filterFields(entry)
+	// Apply field filtering using the shared function
+	entry = FilterFields(entry, h.includeFields, h.excludeFields)
 
 	// Write JSON line
 	jsonData, err := encodeJSON(entry)
@@ -162,28 +149,4 @@ func (h *LogstashHandler) addField(entry map[string]any, key string, value slog.
 	default:
 		entry[fullKey] = value.Any()
 	}
-}
-
-// filterFields applies include/exclude field filtering.
-func (h *LogstashHandler) filterFields(entry map[string]any) map[string]any {
-	if len(h.includeFields) == 0 && len(h.excludeFields) == 0 {
-		return entry
-	}
-
-	result := make(map[string]any)
-	for key, value := range entry {
-		// Check exclude list first
-		if slices.Contains(h.excludeFields, key) {
-			continue
-		}
-
-		// Check include list (if specified)
-		if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
-			continue
-		}
-
-		result[key] = value
-	}
-
-	return result
 }

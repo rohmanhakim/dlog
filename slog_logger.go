@@ -45,30 +45,19 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 
 	// Create the appropriate handler based on format
 	var handler slog.Handler
+	handlerOpts := &HandlerOptions{
+		Level:         cfg.minLevel,
+		IncludeFields: cfg.includeFields,
+		ExcludeFields: cfg.excludeFields,
+	}
+
 	switch format {
 	case FormatText:
-		handler = NewTextHandler(
-			writer,
-			&TextHandlerOptions{
-				Level: cfg.minLevel,
-			},
-		)
+		handler = NewTextHandler(writer, handlerOpts)
 	case FormatLogfmt:
-		handler = NewLogfmtHandler(
-			writer,
-			&LogfmtHandlerOptions{
-				Level: cfg.minLevel,
-			},
-		)
+		handler = NewLogfmtHandler(writer, handlerOpts)
 	default:
-		handler = NewLogstashHandler(
-			writer,
-			&LogstashHandlerOptions{
-				Level:         cfg.minLevel,
-				IncludeFields: cfg.includeFields,
-				ExcludeFields: cfg.excludeFields,
-			},
-		)
+		handler = NewLogstashHandler(writer, handlerOpts)
 	}
 
 	// Create logger and apply group if specified

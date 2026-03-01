@@ -22,7 +22,7 @@ func TestNewLogfmtHandler_NilOptions(t *testing.T) {
 
 func TestNewLogfmtHandler_WithLevel(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelInfo,
 	})
 
@@ -87,7 +87,7 @@ func TestLogfmtHandler_Enabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+			handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 				Level: tt.handlerLevel,
 			})
 
@@ -103,7 +103,7 @@ func TestLogfmtHandler_Enabled(t *testing.T) {
 
 func TestLogfmtHandler_Handle(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -135,7 +135,7 @@ func TestLogfmtHandler_Handle(t *testing.T) {
 
 func TestLogfmtHandler_HandleWithFields(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -162,9 +162,103 @@ func TestLogfmtHandler_HandleWithFields(t *testing.T) {
 	}
 }
 
+func TestLogfmtHandler_FieldFiltering(t *testing.T) {
+	tests := []struct {
+		name          string
+		includeFields []string
+		excludeFields []string
+		attrs         []slog.Attr
+		contains      []string
+		notContains   []string
+	}{
+		{
+			name:          "no filtering",
+			includeFields: nil,
+			excludeFields: nil,
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api", "version=1.0"},
+			notContains: nil,
+		},
+		{
+			name:          "exclude fields",
+			includeFields: nil,
+			excludeFields: []string{"version"},
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api"},
+			notContains: []string{"version=1.0"},
+		},
+		{
+			name:          "include fields only",
+			includeFields: []string{"time", "level", "msg", "service"},
+			excludeFields: nil,
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api"},
+			notContains: []string{"version=1.0"},
+		},
+		{
+			name:          "include and exclude combined",
+			includeFields: []string{"time", "level", "msg", "service", "version"},
+			excludeFields: []string{"version"},
+			attrs: []slog.Attr{
+				slog.String("service", "api"),
+				slog.String("version", "1.0"),
+			},
+			contains:    []string{"service=api"},
+			notContains: []string{"version=1.0"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
+				Level:         slog.LevelDebug,
+				IncludeFields: tt.includeFields,
+				ExcludeFields: tt.excludeFields,
+			})
+
+			ctx := context.Background()
+			now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+			record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+			if len(tt.attrs) > 0 {
+				record.AddAttrs(tt.attrs...)
+			}
+
+			if err := handler.Handle(ctx, record); err != nil {
+				t.Fatalf("Handle failed: %v", err)
+			}
+
+			output := buf.String()
+
+			// Check expected content
+			for _, s := range tt.contains {
+				if !strings.Contains(output, s) {
+					t.Errorf("output should contain %q, got: %s", s, output)
+				}
+			}
+
+			// Check content that should not be present
+			for _, s := range tt.notContains {
+				if strings.Contains(output, s) {
+					t.Errorf("output should not contain %q, got: %s", s, output)
+				}
+			}
+		})
+	}
+}
+
 func TestLogfmtHandler_WithAttrs(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -189,7 +283,7 @@ func TestLogfmtHandler_WithAttrs(t *testing.T) {
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
 	var newBuf bytes.Buffer
-	logfmtHandler := dlog.NewLogfmtHandler(&newBuf, &dlog.LogfmtHandlerOptions{Level: slog.LevelDebug})
+	logfmtHandler := dlog.NewLogfmtHandler(&newBuf, &dlog.HandlerOptions{Level: slog.LevelDebug})
 	handlerWithAttrs := logfmtHandler.WithAttrs([]slog.Attr{
 		slog.String("pre_field", "pre_value"),
 	})
@@ -206,7 +300,7 @@ func TestLogfmtHandler_WithAttrs(t *testing.T) {
 
 func TestLogfmtHandler_WithAttrs_Empty(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -220,7 +314,7 @@ func TestLogfmtHandler_WithAttrs_Empty(t *testing.T) {
 
 func TestLogfmtHandler_WithGroup(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -299,7 +393,7 @@ func TestLogfmtHandler_Format(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewLogfmtHandler(&buf, &dlog.LogfmtHandlerOptions{
+			handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
 				Level: slog.LevelDebug,
 			})
 

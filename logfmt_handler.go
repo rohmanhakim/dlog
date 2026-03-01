@@ -15,32 +15,32 @@ import (
 //
 // Implements [slog.Handler] interface.
 type LogfmtHandler struct {
-	mu    sync.Mutex
-	w     io.Writer
-	level slog.Level
-	attrs []slog.Attr
+	mu            sync.Mutex
+	w             io.Writer
+	level         slog.Level
+	attrs         []slog.Attr
+	includeFields []string
+	excludeFields []string
 }
 
 // NewLogfmtHandler creates a new LogfmtHandler writing to the specified writer.
-func NewLogfmtHandler(w io.Writer, opts *LogfmtHandlerOptions) *LogfmtHandler {
+func NewLogfmtHandler(w io.Writer, opts *HandlerOptions) *LogfmtHandler {
 	level := slog.LevelDebug // default level
+	var includeFields, excludeFields []string
 
-	// Only override default if opts is provided and has a non-zero level
-	// Note: slog.LevelInfo = 0, so we check if opts is non-nil first
+	// Only override default if opts is provided
 	if opts != nil {
 		level = opts.Level
+		includeFields = opts.IncludeFields
+		excludeFields = opts.ExcludeFields
 	}
 
 	return &LogfmtHandler{
-		w:     w,
-		level: level,
+		w:             w,
+		level:         level,
+		includeFields: includeFields,
+		excludeFields: excludeFields,
 	}
-}
-
-// LogfmtHandlerOptions configures the LogfmtHandler.
-type LogfmtHandlerOptions struct {
-	// Level is the minimum log level to output.
-	Level slog.Level
 }
 
 // Enabled returns true if the handler should log at the given level.
@@ -55,27 +55,64 @@ func (h *LogfmtHandler) Handle(_ context.Context, r slog.Record) error {
 
 	enc := logfmt.NewEncoder(h.w)
 
+	// Collect all key-value pairs for filtering
+	fields := make([]struct {
+		key   string
+		value any
+	}, 0)
+
 	// Write timestamp
-	enc.EncodeKeyval("time", r.Time.Format("2006-01-02T15:04:05.000Z"))
+	fields = append(fields, struct {
+		key   string
+		value any
+	}{"time", r.Time.Format("2006-01-02T15:04:05.000Z")})
 
 	// Write level
-	enc.EncodeKeyval("level", r.Level.String())
+	fields = append(fields, struct {
+		key   string
+		value any
+	}{"level", r.Level.String()})
 
 	// Write message
-	enc.EncodeKeyval("msg", r.Message)
+	fields = append(fields, struct {
+		key   string
+		value any
+	}{"msg", r.Message})
 
-	// Add attrs from handler context
+	// Collect attrs from handler context
 	for _, attr := range h.attrs {
-		encodeAttr(enc, attr)
+		fields = appendField(fields, attr)
 	}
 
-	// Add attrs from the record
+	// Collect attrs from the record
 	r.Attrs(func(attr slog.Attr) bool {
-		encodeAttr(enc, attr)
+		fields = appendField(fields, attr)
 		return true
 	})
 
+	// Apply field filtering and encode
+	for _, field := range fields {
+		if h.shouldIncludeField(field.key) {
+			enc.EncodeKeyval(field.key, field.value)
+		}
+	}
+
 	return enc.EndRecord()
+}
+
+// shouldIncludeField checks if a field should be included based on include/exclude lists.
+func (h *LogfmtHandler) shouldIncludeField(key string) bool {
+	// Check exclude list first
+	if slices.Contains(h.excludeFields, key) {
+		return false
+	}
+
+	// Check include list (if specified)
+	if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
+		return false
+	}
+
+	return true
 }
 
 // WithAttrs returns a new handler with the given attributes added.
@@ -85,9 +122,11 @@ func (h *LogfmtHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 
 	newHandler := &LogfmtHandler{
-		w:     h.w,
-		level: h.level,
-		attrs: slices.Clone(h.attrs),
+		w:             h.w,
+		level:         h.level,
+		attrs:         slices.Clone(h.attrs),
+		includeFields: h.includeFields,
+		excludeFields: h.excludeFields,
 	}
 	newHandler.attrs = append(newHandler.attrs, attrs...)
 	return newHandler
@@ -99,14 +138,27 @@ func (h *LogfmtHandler) WithGroup(name string) slog.Handler {
 	return h
 }
 
-// encodeAttr encodes a single attribute to the logfmt encoder.
-func encodeAttr(enc *logfmt.Encoder, attr slog.Attr) {
+// appendField appends a field to the fields slice, handling groups.
+func appendField(fields []struct {
+	key   string
+	value any
+}, attr slog.Attr) []struct {
+	key   string
+	value any
+} {
 	if attr.Value.Kind() == slog.KindGroup {
 		// For groups, flatten with prefixed keys
 		for _, groupAttr := range attr.Value.Group() {
-			enc.EncodeKeyval(attr.Key+"."+groupAttr.Key, groupAttr.Value.Any())
+			fields = append(fields, struct {
+				key   string
+				value any
+			}{attr.Key + "." + groupAttr.Key, groupAttr.Value.Any()})
 		}
 	} else {
-		enc.EncodeKeyval(attr.Key, attr.Value.Any())
+		fields = append(fields, struct {
+			key   string
+			value any
+		}{attr.Key, attr.Value.Any()})
 	}
+	return fields
 }

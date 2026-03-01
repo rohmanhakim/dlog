@@ -14,32 +14,32 @@ import (
 //
 // Implements [slog.Handler] interface.
 type TextHandler struct {
-	mu    sync.Mutex
-	w     io.Writer
-	level slog.Level
-	attrs []slog.Attr
+	mu            sync.Mutex
+	w             io.Writer
+	level         slog.Level
+	attrs         []slog.Attr
+	includeFields []string
+	excludeFields []string
 }
 
 // NewTextHandler creates a new TextHandler writing to the specified writer.
-func NewTextHandler(w io.Writer, opts *TextHandlerOptions) *TextHandler {
+func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
 	level := slog.LevelDebug // default level
+	var includeFields, excludeFields []string
 
-	// Only override default if opts is provided and has a non-zero level
-	// Note: slog.LevelInfo = 0, so we check if opts is non-nil first
+	// Only override default if opts is provided
 	if opts != nil {
 		level = opts.Level
+		includeFields = opts.IncludeFields
+		excludeFields = opts.ExcludeFields
 	}
 
 	return &TextHandler{
-		w:     w,
-		level: level,
+		w:             w,
+		level:         level,
+		includeFields: includeFields,
+		excludeFields: excludeFields,
 	}
-}
-
-// TextHandlerOptions configures the TextHandler.
-type TextHandlerOptions struct {
-	// Level is the minimum log level to output.
-	Level slog.Level
 }
 
 // Enabled returns true if the handler should log at the given level.
@@ -81,6 +81,9 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 		return true
 	})
 
+	// Apply field filtering
+	fields = h.filterFieldList(fields)
+
 	// Write fields
 	if len(fields) > 0 {
 		sb.WriteString(" ")
@@ -100,9 +103,11 @@ func (h *TextHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
 	}
 
 	newHandler := &TextHandler{
-		w:     h.w,
-		level: h.level,
-		attrs: slices.Clone(h.attrs),
+		w:             h.w,
+		level:         h.level,
+		attrs:         slices.Clone(h.attrs),
+		includeFields: h.includeFields,
+		excludeFields: h.excludeFields,
 	}
 	newHandler.attrs = append(newHandler.attrs, attrs...)
 	return newHandler
@@ -127,4 +132,36 @@ func formatField(key string, value slog.Value) string {
 	default:
 		return fmt.Sprintf("%s=%v", key, value.Any())
 	}
+}
+
+// filterFieldList applies include/exclude field filtering to a list of key=value strings.
+func (h *TextHandler) filterFieldList(fields []string) []string {
+	if len(h.includeFields) == 0 && len(h.excludeFields) == 0 {
+		return fields
+	}
+
+	result := make([]string, 0)
+	for _, field := range fields {
+		// Extract key from "key=value" format
+		idx := strings.Index(field, "=")
+		if idx == -1 {
+			result = append(result, field)
+			continue
+		}
+		key := field[:idx]
+
+		// Check exclude list first
+		if slices.Contains(h.excludeFields, key) {
+			continue
+		}
+
+		// Check include list (if specified)
+		if len(h.includeFields) > 0 && !slices.Contains(h.includeFields, key) {
+			continue
+		}
+
+		result = append(result, field)
+	}
+
+	return result
 }

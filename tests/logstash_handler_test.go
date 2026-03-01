@@ -23,7 +23,7 @@ func TestNewLogstashHandler_NilOptions(t *testing.T) {
 
 func TestNewLogstashHandler_WithLevel(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelWarn,
 	})
 
@@ -82,7 +82,7 @@ func TestLogstashHandler_Enabled(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+			handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 				Level: tt.handlerLevel,
 			})
 
@@ -98,7 +98,7 @@ func TestLogstashHandler_Enabled(t *testing.T) {
 
 func TestLogstashHandler_Handle_ValidJSON(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -121,7 +121,7 @@ func TestLogstashHandler_Handle_ValidJSON(t *testing.T) {
 
 func TestLogstashHandler_Handle_RequiredFields(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -158,7 +158,7 @@ func TestLogstashHandler_Handle_RequiredFields(t *testing.T) {
 
 func TestLogstashHandler_Handle_WithFields(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -255,7 +255,7 @@ func TestLogstashHandler_FieldFiltering(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+			handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 				Level:         slog.LevelDebug,
 				IncludeFields: tt.includeFields,
 				ExcludeFields: tt.excludeFields,
@@ -296,7 +296,7 @@ func TestLogstashHandler_FieldFiltering(t *testing.T) {
 
 func TestLogstashHandler_WithAttrs(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -321,7 +321,7 @@ func TestLogstashHandler_WithAttrs(t *testing.T) {
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
 	var newBuf bytes.Buffer
-	logstashHandler := dlog.NewLogstashHandler(&newBuf, &dlog.LogstashHandlerOptions{Level: slog.LevelDebug})
+	logstashHandler := dlog.NewLogstashHandler(&newBuf, &dlog.HandlerOptions{Level: slog.LevelDebug})
 	handlerWithAttrs := logstashHandler.WithAttrs([]slog.Attr{
 		slog.String("pre_field", "pre_value"),
 	})
@@ -342,7 +342,7 @@ func TestLogstashHandler_WithAttrs(t *testing.T) {
 
 func TestLogstashHandler_WithAttrs_Empty(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -356,7 +356,7 @@ func TestLogstashHandler_WithAttrs_Empty(t *testing.T) {
 
 func TestLogstashHandler_WithGroup(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -375,7 +375,7 @@ func TestLogstashHandler_WithGroup(t *testing.T) {
 
 func TestLogstashHandler_WithGroup_Empty(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -389,7 +389,7 @@ func TestLogstashHandler_WithGroup_Empty(t *testing.T) {
 
 func TestLogstashHandler_WithGroup_PrefixFields(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
@@ -453,7 +453,7 @@ func TestLogstashHandler_LevelNames(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
-			handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+			handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 				Level: slog.LevelDebug,
 			})
 
@@ -479,7 +479,7 @@ func TestLogstashHandler_LevelNames(t *testing.T) {
 
 func TestLogstashHandler_Integration(t *testing.T) {
 	var buf bytes.Buffer
-	handler := dlog.NewLogstashHandler(&buf, &dlog.LogstashHandlerOptions{
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
 		Level: slog.LevelDebug,
 	})
 
