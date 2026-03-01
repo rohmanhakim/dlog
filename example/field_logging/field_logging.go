@@ -18,7 +18,6 @@ func main() {
 	if err != nil {
 		log.Printf("failed to create debug config: %v, using NoOpLogger", err)
 	} else {
-		logstashLogger, err = dlog.NewSlogLogger(logstashConfig)
 		fieldMap := dlog.FieldMap{
 			"service.name":    "billing-api",
 			"service.version": "1.4.2",
@@ -26,7 +25,9 @@ func main() {
 			"operation":       "retry_job",
 			"trace.id":        "abc123",
 		}
+		logstashLogger, err = dlog.NewSlogLogger(logstashConfig)
 		logstashLogger = logstashLogger.WithFields(fieldMap)
+		logstashLogger = logstashLogger.WithGroup("myservice")
 		if err != nil {
 			log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
 			logstashLogger = dlog.NewNoOpLogger()

@@ -158,6 +158,16 @@ func (s *SlogLogger) WithFields(fields FieldMap) DebugLogger {
 	}
 }
 
+// WithGroup returns a logger with all subsequent attributes grouped under the given name.
+func (s *SlogLogger) WithGroup(name string) DebugLogger {
+	return &SlogLogger{
+		logger:   s.logger.WithGroup(name),
+		enabled:  s.enabled,
+		preAttrs: s.preAttrs,
+		closer:   s.closer,
+	}
+}
+
 // Close flushes any buffered output and closes file handles.
 func (s *SlogLogger) Close() error {
 	if s.closer != nil {

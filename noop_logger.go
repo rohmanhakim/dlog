@@ -32,5 +32,8 @@ func (n *NoOpLogger) LogError(_ context.Context, _ string, _ error, _ ...FieldMa
 // WithFields returns the same NoOpLogger instance.
 func (n *NoOpLogger) WithFields(_ FieldMap) DebugLogger { return n }
 
+// WithGroup returns the same NoOpLogger instance.
+func (n *NoOpLogger) WithGroup(_ string) DebugLogger { return n }
+
 // Close returns nil - no resources to release.
 func (n *NoOpLogger) Close() error { return nil }

@@ -26,6 +26,9 @@ type DebugLogger interface {
 	// WithFields returns a logger with pre-populated fields.
 	WithFields(fields FieldMap) DebugLogger
 
+	// WithGroup returns a logger with all subsequent attributes grouped under the given name.
+	WithGroup(name string) DebugLogger
+
 	// Close flushes any buffered output and closes file handles.
 	Close() error
 }

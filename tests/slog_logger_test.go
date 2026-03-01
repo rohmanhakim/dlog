@@ -264,6 +264,130 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 	}
 }
 
+func TestSlogLogger_WithGroup(t *testing.T) {
+	config := dlog.DebugConfig{
+		Enabled:  true,
+		MinLevel: slog.LevelDebug,
+		Format:   dlog.FormatJSON,
+	}
+
+	logger, err := dlog.NewSlogLogger(config)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+	defer logger.Close()
+
+	loggerWithGroup := logger.WithGroup("myservice")
+
+	if loggerWithGroup == nil {
+		t.Fatal("WithGroup returned nil")
+	}
+
+	if !loggerWithGroup.Enabled() {
+		t.Error("WithGroup logger should have Enabled() = true")
+	}
+}
+
+func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "withgroup-test.jsonl")
+
+	config := dlog.DebugConfig{
+		Enabled:    true,
+		MinLevel:   slog.LevelDebug,
+		OutputFile: outputFile,
+		Format:     dlog.FormatJSON,
+	}
+
+	logger, err := dlog.NewSlogLogger(config)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	// Add pre-populated fields and group
+	loggerWithFields := logger.WithFields(dlog.FieldMap{
+		"service": "billing-api",
+	})
+	loggerWithGroup := loggerWithFields.WithGroup("request")
+
+	ctx := context.Background()
+	loggerWithGroup.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Note: preAttrs are also affected by WithGroup since they're logged through the grouped logger
+	// Verify pre-populated field is prefixed with group name
+	if entry["request.service"] != "billing-api" {
+		t.Errorf("expected request.service=billing-api, got %v", entry["request.service"])
+	}
+
+	// Verify grouped field is prefixed with group name
+	if entry["request.id"] != "abc123" {
+		t.Errorf("expected request.id=abc123, got %v", entry["request.id"])
+	}
+}
+
+func TestSlogLogger_WithGroupChained(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "withgroupchained-test.jsonl")
+
+	config := dlog.DebugConfig{
+		Enabled:    true,
+		MinLevel:   slog.LevelDebug,
+		OutputFile: outputFile,
+		Format:     dlog.FormatJSON,
+	}
+
+	logger, err := dlog.NewSlogLogger(config)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	// Chain WithFields and WithGroup
+	logger = logger.WithFields(dlog.FieldMap{"app": "myapp"}).
+		WithGroup("myservice").
+		WithFields(dlog.FieldMap{"component": "scheduler"})
+
+	ctx := context.Background()
+	logger.LogInfo(ctx, "test message", dlog.FieldMap{"operation": "retry"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Note: preAttrs are also affected by WithGroup since they're logged through the grouped logger
+	// Verify all fields are prefixed with group name
+	if entry["myservice.app"] != "myapp" {
+		t.Errorf("expected myservice.app=myapp, got %v", entry["myservice.app"])
+	}
+	if entry["myservice.component"] != "scheduler" {
+		t.Errorf("expected myservice.component=scheduler, got %v", entry["myservice.component"])
+	}
+	if entry["myservice.operation"] != "retry" {
+		t.Errorf("expected myservice.operation=retry, got %v", entry["myservice.operation"])
+	}
+}
+
 func TestSlogLogger_Close(t *testing.T) {
 	t.Run("close with file", func(t *testing.T) {
 		tmpDir := t.TempDir()

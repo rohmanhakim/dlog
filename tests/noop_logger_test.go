@@ -59,6 +59,22 @@ func TestNoOpLogger_WithFields(t *testing.T) {
 	}
 }
 
+func TestNoOpLogger_WithGroup(t *testing.T) {
+	logger := dlog.NewNoOpLogger()
+
+	result := logger.WithGroup("myservice")
+
+	// WithGroup should return the same instance for NoOpLogger
+	if result != logger {
+		t.Error("WithGroup should return the same NoOpLogger instance")
+	}
+
+	// The returned logger should also be a NoOpLogger
+	if result.Enabled() {
+		t.Error("Returned logger's Enabled() should return false")
+	}
+}
+
 func TestNoOpLogger_Close(t *testing.T) {
 	logger := dlog.NewNoOpLogger()
 
