@@ -26,6 +26,12 @@ type config struct {
 
 	// excludeFields filters fields to exclude.
 	excludeFields []string
+
+	// preAttrs are pre-populated fields for all log entries.
+	preAttrs FieldMap
+
+	// groupName is the group name for all subsequent attributes.
+	groupName string
 }
 
 // Option is a functional option for configuring the logger.
@@ -50,5 +56,21 @@ func WithIncludeFields(fields []string) Option {
 func WithExcludeFields(fields []string) Option {
 	return func(c *config) {
 		c.excludeFields = fields
+	}
+}
+
+// WithFields sets pre-populated fields for all log entries.
+// These fields will be included in every log message from this logger.
+func WithFields(fields FieldMap) Option {
+	return func(c *config) {
+		c.preAttrs = fields
+	}
+}
+
+// WithGroup sets a group name for all subsequent attributes.
+// All fields will be prefixed with the group name (e.g., "myservice.field").
+func WithGroup(name string) Option {
+	return func(c *config) {
+		c.groupName = name
 	}
 }

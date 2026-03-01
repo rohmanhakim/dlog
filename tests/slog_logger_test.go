@@ -431,6 +431,173 @@ func TestSlogLogger_Integration_TextFormat(t *testing.T) {
 	}
 }
 
+func TestSlogLogger_WithFieldsOption(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "withfields-option-test.jsonl")
+
+	// Create logger with WithFields functional option
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+		dlog.WithFields(dlog.FieldMap{
+			"service": "billing-api",
+			"version": "1.0.0",
+		}),
+	)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	ctx := context.Background()
+	logger.LogInfo(ctx, "test message", dlog.FieldMap{"extra": "value"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Verify pre-populated fields are present
+	if entry["service"] != "billing-api" {
+		t.Errorf("expected service=billing-api, got %v", entry["service"])
+	}
+	if entry["version"] != "1.0.0" {
+		t.Errorf("expected version=1.0.0, got %v", entry["version"])
+	}
+
+	// Verify additional field is present
+	if entry["extra"] != "value" {
+		t.Errorf("expected extra=value, got %v", entry["extra"])
+	}
+}
+
+func TestSlogLogger_WithGroupOption(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "withgroup-option-test.jsonl")
+
+	// Create logger with WithGroup functional option
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+		dlog.WithGroup("myservice"),
+	)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	ctx := context.Background()
+	logger.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Verify grouped field is prefixed with group name
+	if entry["myservice.id"] != "abc123" {
+		t.Errorf("expected myservice.id=abc123, got %v", entry["myservice.id"])
+	}
+}
+
+func TestSlogLogger_WithFieldsAndGroupOptions(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "withfields-group-option-test.jsonl")
+
+	// Create logger with both WithFields and WithGroup functional options
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+		dlog.WithFields(dlog.FieldMap{
+			"service": "billing-api",
+		}),
+		dlog.WithGroup("myservice"),
+	)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	ctx := context.Background()
+	logger.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Verify pre-populated field is prefixed with group name
+	if entry["myservice.service"] != "billing-api" {
+		t.Errorf("expected myservice.service=billing-api, got %v", entry["myservice.service"])
+	}
+
+	// Verify additional field is prefixed with group name
+	if entry["myservice.id"] != "abc123" {
+		t.Errorf("expected myservice.id=abc123, got %v", entry["myservice.id"])
+	}
+}
+
+func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
+	tmpDir := t.TempDir()
+	outputFile := filepath.Join(tmpDir, "combined-test.jsonl")
+
+	// Create logger with functional options, then chain method calls
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
+		dlog.WithFields(dlog.FieldMap{
+			"service": "billing-api",
+		}),
+		dlog.WithGroup("myservice"),
+	)
+	if err != nil {
+		t.Fatalf("NewSlogLogger failed: %v", err)
+	}
+
+	// Chain additional WithFields on the created logger
+	derivedLogger := logger.WithFields(dlog.FieldMap{"component": "scheduler"})
+
+	ctx := context.Background()
+	derivedLogger.LogInfo(ctx, "test message", dlog.FieldMap{"operation": "retry"})
+
+	logger.Close()
+
+	// Read and parse the output
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("failed to read output file: %v", err)
+	}
+
+	var entry map[string]any
+	if err := json.Unmarshal(content, &entry); err != nil {
+		t.Fatalf("failed to parse JSON: %v", err)
+	}
+
+	// Verify all fields are prefixed with group name
+	if entry["myservice.service"] != "billing-api" {
+		t.Errorf("expected myservice.service=billing-api, got %v", entry["myservice.service"])
+	}
+	if entry["myservice.component"] != "scheduler" {
+		t.Errorf("expected myservice.component=scheduler, got %v", entry["myservice.component"])
+	}
+	if entry["myservice.operation"] != "retry" {
+		t.Errorf("expected myservice.operation=retry, got %v", entry["myservice.operation"])
+	}
+}
+
 func TestSlogLogger_ImplementsDebugLogger(t *testing.T) {
 	// Compile-time check that SlogLogger implements DebugLogger
 	var _ dlog.DebugLogger = &dlog.SlogLogger{}

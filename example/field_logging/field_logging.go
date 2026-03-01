@@ -14,6 +14,12 @@ func main() {
 	var textLogger dlog.DebugLogger = dlog.NewNoOpLogger()
 	var logfmtLogger dlog.DebugLogger = dlog.NewNoOpLogger()
 
+	// =============================================================================
+	// Pattern 1: Functional Options (at initialization)
+	// =============================================================================
+	// Use functional options to set fields and group during logger creation.
+	// This is cleaner for initial setup and base configuration.
+
 	fieldMap := dlog.FieldMap{
 		"service.name":    "billing-api",
 		"service.version": "1.4.2",
@@ -22,28 +28,64 @@ func main() {
 		"trace.id":        "abc123",
 	}
 
-	logstashLogger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "test-output.jsonl")
+	logstashLogger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "test-output.jsonl",
+		dlog.WithFields(fieldMap),
+		dlog.WithGroup("myservice"),
+	)
 	if err != nil {
 		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
 		logstashLogger = dlog.NewNoOpLogger()
 	}
-	logstashLogger = logstashLogger.WithFields(fieldMap)
-	logstashLogger = logstashLogger.WithGroup("myservice")
 
-	textLogger, err = dlog.NewSlogLogger(true, dlog.FormatText, "test-output.txt")
+	textLogger, err = dlog.NewSlogLogger(true, dlog.FormatText, "test-output.txt",
+		dlog.WithFields(fieldMap),
+	)
 	if err != nil {
 		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
 		textLogger = dlog.NewNoOpLogger()
 	}
-	textLogger = textLogger.WithFields(fieldMap)
 
-	logfmtLogger, err = dlog.NewSlogLogger(true, dlog.FormatLogfmt, "test-output.logfmt")
+	logfmtLogger, err = dlog.NewSlogLogger(true, dlog.FormatLogfmt, "test-output.logfmt",
+		dlog.WithFields(fieldMap),
+	)
 	if err != nil {
 		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
 		logfmtLogger = dlog.NewNoOpLogger()
 	}
-	logfmtLogger = logfmtLogger.WithFields(fieldMap)
 
+	// =============================================================================
+	// Pattern 2: Chaining (for derived loggers)
+	// =============================================================================
+	// Use method chaining to create specialized loggers from a base logger.
+	// This is useful for creating component-specific loggers that share base config.
+
+	// Create a base logger with common service fields
+	baseLogger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "derived-output.jsonl",
+		dlog.WithFields(dlog.FieldMap{
+			"service.name":    "billing-api",
+			"service.version": "1.4.2",
+		}),
+	)
+	if err != nil {
+		log.Printf("failed to create base logger: %v", err)
+	} else {
+		// Derive specialized loggers for different components
+		schedulerLogger := baseLogger.WithGroup("scheduler").
+			WithFields(dlog.FieldMap{"component": "job-retry"})
+
+		dbLogger := baseLogger.WithGroup("database").
+			WithFields(dlog.FieldMap{"component": "postgres"})
+
+		// Use derived loggers
+		ctx := context.Background()
+		schedulerLogger.LogInfo(ctx, "Job retry started", dlog.FieldMap{"job_id": "job-123"})
+		dbLogger.LogInfo(ctx, "Database connection established", dlog.FieldMap{"host": "localhost"})
+		baseLogger.Close()
+	}
+
+	// =============================================================================
+	// Log messages using the loggers created with functional options
+	// =============================================================================
 	ctx := context.Background()
 	logstashLogger.LogDebug(ctx, "New JSON-formatted Message with Debug-level", dlog.FieldMap{"my_debug_key": "my_debug_val"})
 	logstashLogger.LogWarn(ctx, "New JSON-formatted Message with Warn-level", dlog.FieldMap{"my_warn_key": "my_warn_val"})
@@ -54,6 +96,10 @@ func main() {
 	logfmtLogger.LogInfo(ctx, "New Logfmt-formatted Message with Info-level", dlog.FieldMap{"my_info_key": "my_info_val"})
 	logfmtLogger.LogError(ctx, "New Logfmt-formatted Message with Error-level", NewSimpleError(ErrCauseUnknown, "unknown error occured!"), dlog.FieldMap{"my_error_key": "my_error_val"})
 
+	// Close loggers
+	logstashLogger.Close()
+	textLogger.Close()
+	logfmtLogger.Close()
 }
 
 // Example custom error

@@ -28,6 +28,8 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 		minLevel:      slog.LevelDebug,
 		includeFields: []string{},
 		excludeFields: []string{},
+		preAttrs:      nil,
+		groupName:     "",
 	}
 
 	// Apply options
@@ -69,10 +71,17 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 		)
 	}
 
+	// Create logger and apply group if specified
+	logger := slog.New(handler)
+	if cfg.groupName != "" {
+		logger = logger.WithGroup(cfg.groupName)
+	}
+
 	return &SlogLogger{
-		logger:  slog.New(handler),
-		enabled: true,
-		closer:  writer.Close,
+		logger:   logger,
+		enabled:  true,
+		preAttrs: cfg.preAttrs,
+		closer:   writer.Close,
 	}, nil
 }
 
