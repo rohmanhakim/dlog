@@ -63,11 +63,9 @@ func (h *LogstashHandler) Handle(_ context.Context, r slog.Record) error {
 
 	// Build the log entry following the design document structure
 	entry := map[string]any{
-		"@timestamp":  r.Time.Format(time.RFC3339Nano),
-		"@version":    "1",
-		"level":       r.Level.String(),
-		"message":     r.Message,
-		"thread_name": "main",
+		"@timestamp": r.Time.Format(time.RFC3339Nano),
+		"log.level":  r.Level.String(),
+		"message":    r.Message,
 	}
 
 	// Add attrs from handler context

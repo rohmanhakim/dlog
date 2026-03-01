@@ -429,10 +429,7 @@ func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 		if _, ok := entry["@timestamp"]; !ok {
 			t.Errorf("line %d: missing @timestamp", i+1)
 		}
-		if entry["@version"] != "1" {
-			t.Errorf("line %d: @version should be '1'", i+1)
-		}
-		if _, ok := entry["level"]; !ok {
+		if _, ok := entry["log.level"]; !ok {
 			t.Errorf("line %d: missing level", i+1)
 		}
 		if _, ok := entry["message"]; !ok {

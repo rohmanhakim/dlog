@@ -142,17 +142,11 @@ func TestLogstashHandler_Handle_RequiredFields(t *testing.T) {
 	if _, ok := entry["@timestamp"]; !ok {
 		t.Error("missing @timestamp field")
 	}
-	if entry["@version"] != "1" {
-		t.Errorf("@version should be '1', got: %v", entry["@version"])
-	}
-	if entry["level"] != "INFO" {
-		t.Errorf("level should be 'INFO', got: %v", entry["level"])
+	if entry["log.level"] != "INFO" {
+		t.Errorf("level should be 'INFO', got: %v", entry["log.level"])
 	}
 	if entry["message"] != "test message" {
 		t.Errorf("message should be 'test message', got: %v", entry["message"])
-	}
-	if entry["thread_name"] != "main" {
-		t.Errorf("thread_name should be 'main', got: %v", entry["thread_name"])
 	}
 }
 
@@ -470,8 +464,8 @@ func TestLogstashHandler_LevelNames(t *testing.T) {
 				t.Fatalf("failed to parse JSON: %v", err)
 			}
 
-			if entry["level"] != tt.expectedLevel {
-				t.Errorf("level = %v, want %v", entry["level"], tt.expectedLevel)
+			if entry["log.level"] != tt.expectedLevel {
+				t.Errorf("log.level = %v, want %v", entry["log.level"], tt.expectedLevel)
 			}
 		})
 	}

@@ -18,8 +18,8 @@ func main() {
 		dlog.FormatJSON,
 		"",
 		dlog.WithFields(dlog.FieldMap{
-			"service": "billing-api",
-			"version": "1.0.0",
+			"service.name":    "billing-api",
+			"service.version": "1.0.0",
 		}),
 	)
 	defer logger1.Close()
@@ -71,17 +71,17 @@ func main() {
 		dlog.FormatJSON,
 		"",
 		dlog.WithIncludeFields([]string{
-			"service", "version", "request_id", "user_id",
+			"service.name", "service.version", "request.id", "user.id",
 		}),
 	)
 	defer logger3b.Close()
 
 	logger3b.LogInfo(ctx, "Processing order", dlog.FieldMap{
-		"service":    "order-service",
-		"version":    "2.1.0",
-		"request_id": "req-abc-123",
-		"user_id":    "user-456",
-		"debug":      "verbose debug info", // This will be excluded (not in include list)
+		"service.name":    "order-service",
+		"service.version": "2.1.0",
+		"request.id":      "req-abc-123",
+		"user.id":         "user-456",
+		"debug":           "verbose debug info", // This will be excluded (not in include list)
 	})
 
 	// 3c: Combine WithGroup and WithFields
