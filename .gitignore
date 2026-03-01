@@ -8,3 +8,5 @@ example/field_logging/field_logging
 example/field_logging/test-output.jsonl
 example/field_logging/test-output.txt
 example/field_logging/test-output.logfmt
+# Added by goreleaser init:
+dist/
