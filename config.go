@@ -2,6 +2,21 @@ package dlog
 
 import (
 	"log/slog"
+	"time"
+)
+
+// SyncMode determines when file writes are flushed to disk.
+type SyncMode int
+
+const (
+	// SyncImmediate flushes after every write (maximum durability, slower).
+	SyncImmediate SyncMode = iota
+
+	// SyncBuffered buffers writes and flushes only on Close() (better performance).
+	SyncBuffered
+
+	// SyncPeriodic flushes at regular intervals (balance of durability/performance).
+	SyncPeriodic
 )
 
 // Format represents the output format for debug logging.
@@ -32,6 +47,12 @@ type config struct {
 
 	// groupName is the group name for all subsequent attributes.
 	groupName string
+
+	// syncMode determines when file writes are flushed to disk.
+	syncMode SyncMode
+
+	// syncInterval is the flush interval for SyncPeriodic mode.
+	syncInterval time.Duration
 }
 
 // Option is a functional option for configuring the logger.
@@ -72,5 +93,21 @@ func WithFields(fields FieldMap) Option {
 func WithGroup(name string) Option {
 	return func(c *config) {
 		c.groupName = name
+	}
+}
+
+// WithSyncMode sets the sync mode for file output.
+// Default is SyncImmediate for maximum durability.
+func WithSyncMode(mode SyncMode) Option {
+	return func(c *config) {
+		c.syncMode = mode
+	}
+}
+
+// WithSyncInterval sets the flush interval for SyncPeriodic mode.
+// Only used when SyncMode is SyncPeriodic. Default is 1 second.
+func WithSyncInterval(interval time.Duration) Option {
+	return func(c *config) {
+		c.syncInterval = interval
 	}
 }

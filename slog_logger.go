@@ -30,6 +30,8 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 		excludeFields: []string{},
 		preAttrs:      nil,
 		groupName:     "",
+		syncMode:      SyncImmediate, // Default to maximum durability
+		syncInterval:  0,             // Will use default in NewMultiWriter
 	}
 
 	// Apply options
@@ -38,7 +40,7 @@ func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Optio
 	}
 
 	// Create the writer (stdout + optional file)
-	writer, err := NewMultiWriter(outputFile)
+	writer, err := NewMultiWriter(outputFile, cfg.syncMode, cfg.syncInterval)
 	if err != nil {
 		return nil, err
 	}
