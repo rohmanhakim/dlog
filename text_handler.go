@@ -49,9 +49,6 @@ func (h *TextHandler) Enabled(_ context.Context, level slog.Level) bool {
 
 // Handle processes the log record and writes it in human-readable text format.
 func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	// Format: 2026-02-21T13:50:00.123Z [DEBUG] [logger_name] message
 	var sb strings.Builder
 
@@ -92,7 +89,12 @@ func (h *TextHandler) Handle(_ context.Context, r slog.Record) error {
 
 	sb.WriteString("\n")
 
-	_, err := h.w.Write([]byte(sb.String()))
+	// Build the output bytes first, then lock only for the write
+	output := []byte(sb.String())
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, err := h.w.Write(output)
 	return err
 }
 

@@ -1,6 +1,7 @@
 package dlog
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -50,10 +51,9 @@ func (h *LogfmtHandler) Enabled(_ context.Context, level slog.Level) bool {
 
 // Handle processes the log record and writes it in logfmt format.
 func (h *LogfmtHandler) Handle(_ context.Context, r slog.Record) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
-	enc := logfmt.NewEncoder(h.w)
+	// Encode to a buffer first, then lock only for the write
+	var buf bytes.Buffer
+	enc := logfmt.NewEncoder(&buf)
 
 	// Collect all key-value pairs for filtering
 	fields := make([]struct {
@@ -97,7 +97,14 @@ func (h *LogfmtHandler) Handle(_ context.Context, r slog.Record) error {
 		}
 	}
 
-	return enc.EndRecord()
+	if err := enc.EndRecord(); err != nil {
+		return err
+	}
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, err := h.w.Write(buf.Bytes())
+	return err
 }
 
 // shouldIncludeField checks if a field should be included based on include/exclude lists.

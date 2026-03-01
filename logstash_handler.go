@@ -3,7 +3,6 @@ package dlog
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log/slog"
 	"slices"
@@ -58,9 +57,6 @@ func (h *LogstashHandler) Enabled(_ context.Context, level slog.Level) bool {
 
 // Handle processes the log record and writes it in Logstash JSON format.
 func (h *LogstashHandler) Handle(_ context.Context, r slog.Record) error {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
 	// Build the log entry following the design document structure
 	entry := map[string]any{
 		"@timestamp": r.Time.Format(time.RFC3339Nano),
@@ -82,13 +78,18 @@ func (h *LogstashHandler) Handle(_ context.Context, r slog.Record) error {
 	// Apply field filtering using the shared function
 	entry = FilterFields(entry, h.includeFields, h.excludeFields)
 
-	// Write JSON line
+	// Marshal to JSON first, then lock only for the write
 	jsonData, err := encodeJSON(entry)
 	if err != nil {
 		return err
 	}
 
-	_, err = fmt.Fprintln(h.w, string(jsonData))
+	// Add newline
+	output := append(jsonData, '\n')
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, err = h.w.Write(output)
 	return err
 }
 
