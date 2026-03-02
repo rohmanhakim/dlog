@@ -368,6 +368,178 @@ func TestLogstashHandler_ImplementsSlogHandler(t *testing.T) {
 	var _ slog.Handler = dlog.NewLogstashHandler(nil, nil)
 }
 
+func TestLogstashHandler_FlattenAttrs_GroupKind(t *testing.T) {
+	// Test flattenAndFilterAttrs when attr.Value.Kind() == slog.KindGroup
+	var buf bytes.Buffer
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+
+	// Add group attributes - tests flattenAndFilterAttrs with slog.KindGroup
+	record.AddAttrs(
+		slog.Group("request",
+			slog.String("id", "abc123"),
+			slog.String("method", "GET"),
+			slog.Group("headers",
+				slog.String("content-type", "application/json"),
+				slog.String("authorization", "Bearer token"),
+			),
+		),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	var entry map[string]any
+	err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
+
+	// Check that groups are flattened with dot notation
+	assert.Equal(t, "abc123", entry["request.id"], "request.id should be flattened")
+	assert.Equal(t, "GET", entry["request.method"], "request.method should be flattened")
+	assert.Equal(t, "application/json", entry["request.headers.content-type"], "nested group should be flattened")
+	assert.Equal(t, "Bearer token", entry["request.headers.authorization"], "nested group should be flattened")
+}
+
+// testLogValuer is a custom type that implements slog.LogValuer
+type testLogValuer struct {
+	value string
+}
+
+// LogValue implements slog.LogValuer interface
+func (t testLogValuer) LogValue() slog.Value {
+	return slog.StringValue("resolved_" + t.value)
+}
+
+func TestLogstashHandler_FlattenAttrs_LogValuerKind(t *testing.T) {
+	// Test flattenAndFilterAttrs when attr.Value.Kind() == slog.KindLogValuer
+	var buf bytes.Buffer
+	handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+
+	// Add an attribute that implements slog.LogValuer
+	record.AddAttrs(
+		slog.Any("custom_value", testLogValuer{value: "test"}),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	var entry map[string]any
+	err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
+
+	// Check that LogValuer was resolved
+	assert.Equal(t, "resolved_test", entry["custom_value"], "LogValuer should be resolved")
+}
+
+func TestLogstashHandler_ShouldIncludeField_BuiltinFields(t *testing.T) {
+	// Test shouldIncludeField returns true for builtin fields even when not in include list
+	tests := []struct {
+		name          string
+		includeFields []string
+		builtinField  string
+	}{
+		{
+			name:          "time field is always included",
+			includeFields: []string{"custom_field"}, // only include custom field
+			builtinField:  "time",
+		},
+		{
+			name:          "level field is always included",
+			includeFields: []string{"custom_field"},
+			builtinField:  "level",
+		},
+		{
+			name:          "msg field is always included",
+			includeFields: []string{"custom_field"},
+			builtinField:  "msg",
+		},
+		{
+			name:          "@timestamp field is always included",
+			includeFields: []string{"custom_field"},
+			builtinField:  "@timestamp",
+		},
+		{
+			name:          "log.level field is always included",
+			includeFields: []string{"custom_field"},
+			builtinField:  "log.level",
+		},
+		{
+			name:          "message field is always included",
+			includeFields: []string{"custom_field"},
+			builtinField:  "message",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var buf bytes.Buffer
+			handler := dlog.NewLogstashHandler(&buf, &dlog.HandlerOptions{
+				Level:         slog.LevelDebug,
+				IncludeFields: tt.includeFields,
+			})
+
+			ctx := context.Background()
+			now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+			record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+
+			err := handler.Handle(ctx, record)
+			require.NoError(t, err, "Handle failed")
+
+			var entry map[string]any
+			err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+			require.NoError(t, err, "failed to parse JSON")
+
+			// Builtin fields should still be present
+			if tt.builtinField == "time" || tt.builtinField == "@timestamp" {
+				assert.Contains(t, entry, "@timestamp", "@timestamp should always be included")
+			} else if tt.builtinField == "level" || tt.builtinField == "log.level" {
+				assert.Contains(t, entry, "log.level", "log.level should always be included")
+			} else if tt.builtinField == "msg" || tt.builtinField == "message" {
+				assert.Contains(t, entry, "message", "message should always be included")
+			}
+		})
+	}
+}
+
+func TestLogstashHandler_ShouldIncludeField_NilFieldFilter(t *testing.T) {
+	// Test shouldIncludeField returns true when fieldFilter == nil
+	// This happens when HandlerOptions is nil
+	var buf bytes.Buffer
+	handler := dlog.NewLogstashHandler(&buf, nil)
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+	record.AddAttrs(
+		slog.String("field1", "value1"),
+		slog.String("field2", "value2"),
+		slog.String("field3", "value3"),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	var entry map[string]any
+	err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
+
+	// All fields should be present when fieldFilter is nil
+	assert.Equal(t, "value1", entry["field1"])
+	assert.Equal(t, "value2", entry["field2"])
+	assert.Equal(t, "value3", entry["field3"])
+}
+
 func TestLogstashHandler_LevelNames(t *testing.T) {
 	tests := []struct {
 		name          string

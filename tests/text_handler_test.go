@@ -291,6 +291,63 @@ func TestTextHandler_WithGroup(t *testing.T) {
 	assert.Same(t, handler, newHandler, "WithGroup should return same handler (no-op for TextHandler)")
 }
 
+func TestTextHandler_HandleWithGroupAttr(t *testing.T) {
+	// Test formatField with slog.KindGroup
+	var buf bytes.Buffer
+	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+
+	// Add a group attribute - this tests formatField with slog.KindGroup
+	record.AddAttrs(
+		slog.Group("request",
+			slog.String("id", "abc123"),
+			slog.String("method", "GET"),
+		),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	output := buf.String()
+
+	// Check that group is formatted as key={nested=val}
+	assert.Contains(t, output, "request={", "expected group key with opening brace")
+	assert.Contains(t, output, "id=abc123", "expected nested field id=abc123")
+	assert.Contains(t, output, "method=GET", "expected nested field method=GET")
+	assert.Contains(t, output, "}", "expected closing brace for group")
+}
+
+func TestTextHandler_NilFieldFilter(t *testing.T) {
+	// Test filterFieldList with nil fieldFilter - all fields should pass through
+	var buf bytes.Buffer
+	// Passing nil HandlerOptions means fieldFilter is nil
+	handler := dlog.NewTextHandler(&buf, nil)
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+	record.AddAttrs(
+		slog.String("service", "api"),
+		slog.String("version", "1.0"),
+		slog.Int("count", 42),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	output := buf.String()
+
+	// All fields should be present (no filtering)
+	assert.Contains(t, output, "service=api", "expected service field")
+	assert.Contains(t, output, "version=1.0", "expected version field")
+	assert.Contains(t, output, "count=42", "expected count field")
+}
+
 func TestTextHandler_ImplementsSlogHandler(t *testing.T) {
 	// Compile-time check that TextHandler implements slog.Handler
 	var _ slog.Handler = dlog.NewTextHandler(nil, nil)

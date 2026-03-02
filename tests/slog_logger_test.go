@@ -318,6 +318,27 @@ func TestSlogLogger_Close(t *testing.T) {
 	})
 }
 
+func TestNewSlogLogger_InvalidFilePath(t *testing.T) {
+	// Test that NewSlogLogger returns error when NewMultiWriter fails
+	invalidPath := "/nonexistent/directory/test.log"
+
+	logger, err := dlog.NewSlogLogger(true, invalidPath, dlog.FormatJSON)
+	require.Error(t, err, "expected error for invalid file path")
+	assert.Nil(t, logger, "expected nil logger on error")
+	assert.Contains(t, err.Error(), "failed to open debug log file", "expected error to contain file open message")
+}
+
+func TestSlogLogger_Close_NilCloser(t *testing.T) {
+	// Test Close() when s.closer == nil
+	// This happens when logger is created without a file output
+	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	require.NoError(t, err, "NewSlogLogger failed")
+
+	// Close should return nil when closer is nil
+	err = logger.Close()
+	assert.NoError(t, err, "Close with nil closer should return nil")
+}
+
 func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "integration-json.jsonl")

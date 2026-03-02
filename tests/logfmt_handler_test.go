@@ -296,6 +296,89 @@ func TestLogfmtHandler_ImplementsSlogHandler(t *testing.T) {
 	var _ slog.Handler = dlog.NewLogfmtHandler(nil, nil)
 }
 
+func TestLogfmtHandler_ShouldIncludeField_NilFieldFilter(t *testing.T) {
+	// When HandlerOptions is nil, fieldFilter should be nil and all fields should be included
+	var buf bytes.Buffer
+	handler := dlog.NewLogfmtHandler(&buf, nil)
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+	record.AddAttrs(
+		slog.String("field1", "value1"),
+		slog.String("field2", "value2"),
+		slog.String("field3", "value3"),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	output := buf.String()
+
+	// All fields should be present when fieldFilter is nil
+	assert.Contains(t, output, "field1=value1")
+	assert.Contains(t, output, "field2=value2")
+	assert.Contains(t, output, "field3=value3")
+}
+
+func TestLogfmtHandler_AppendField_GroupKind(t *testing.T) {
+	var buf bytes.Buffer
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+
+	// Add a group attribute - this tests appendField when attr.Value.Kind() == slog.KindGroup
+	record.AddAttrs(
+		slog.Group("request",
+			slog.String("id", "abc123"),
+			slog.String("method", "GET"),
+		),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	output := buf.String()
+
+	// Group fields should be flattened with prefixed keys (group.key=value)
+	assert.Contains(t, output, "request.id=abc123")
+	assert.Contains(t, output, "request.method=GET")
+}
+
+func TestLogfmtHandler_AppendField_NestedGroupKind(t *testing.T) {
+	var buf bytes.Buffer
+	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
+		Level: slog.LevelDebug,
+	})
+
+	ctx := context.Background()
+	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
+	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
+
+	// Add nested group attributes
+	record.AddAttrs(
+		slog.Group("http",
+			slog.String("status", "200"),
+			slog.Group("headers", // Note: logfmt handler doesn't support nested groups, only one level
+				slog.String("content-type", "application/json"),
+			),
+		),
+	)
+
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
+
+	output := buf.String()
+
+	// First level group should be flattened
+	assert.Contains(t, output, "http.status=200")
+	// The nested group's inner group becomes a value (not recursively flattened in logfmt)
+}
+
 func TestLogfmtHandler_Format(t *testing.T) {
 	tests := []struct {
 		name     string
