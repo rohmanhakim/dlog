@@ -5,20 +5,18 @@ import (
 	"testing"
 
 	"github.com/rohmanhakim/dlog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewNoOpLogger(t *testing.T) {
 	logger := dlog.NewNoOpLogger()
-	if logger == nil {
-		t.Fatal("NewNoOpLogger returned nil")
-	}
+	require.NotNil(t, logger)
 }
 
 func TestNoOpLogger_Enabled(t *testing.T) {
 	logger := dlog.NewNoOpLogger()
-	if logger.Enabled() {
-		t.Error("Enabled() should always return false for NoOpLogger")
-	}
+	assert.False(t, logger.Enabled())
 }
 
 func TestNoOpLogger_LogMethods(t *testing.T) {
@@ -49,14 +47,10 @@ func TestNoOpLogger_WithFields(t *testing.T) {
 	result := logger.WithFields(fields)
 
 	// WithFields should return the same instance for NoOpLogger
-	if result != logger {
-		t.Error("WithFields should return the same NoOpLogger instance")
-	}
+	assert.Same(t, logger, result, "WithFields should return the same NoOpLogger instance")
 
 	// The returned logger should also be a NoOpLogger
-	if result.Enabled() {
-		t.Error("Returned logger's Enabled() should return false")
-	}
+	assert.False(t, result.Enabled())
 }
 
 func TestNoOpLogger_WithGroup(t *testing.T) {
@@ -65,23 +59,17 @@ func TestNoOpLogger_WithGroup(t *testing.T) {
 	result := logger.WithGroup("myservice")
 
 	// WithGroup should return the same instance for NoOpLogger
-	if result != logger {
-		t.Error("WithGroup should return the same NoOpLogger instance")
-	}
+	assert.Same(t, logger, result, "WithGroup should return the same NoOpLogger instance")
 
 	// The returned logger should also be a NoOpLogger
-	if result.Enabled() {
-		t.Error("Returned logger's Enabled() should return false")
-	}
+	assert.False(t, result.Enabled())
 }
 
 func TestNoOpLogger_Close(t *testing.T) {
 	logger := dlog.NewNoOpLogger()
 
 	err := logger.Close()
-	if err != nil {
-		t.Errorf("Close() should return nil, got: %v", err)
-	}
+	assert.NoError(t, err)
 }
 
 func TestNoOpLogger_ImplementsDebugLogger(t *testing.T) {

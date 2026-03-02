@@ -5,18 +5,16 @@ import (
 	"testing"
 
 	"github.com/rohmanhakim/dlog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSlogLogger_DisabledReturnsNoOp_FromConfig(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(false, dlog.FormatJSON, "")
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Should return NoOpLogger when disabled
-	if logger.Enabled() {
-		t.Error("Expected NoOpLogger when enabled=false, but Enabled() returned true")
-	}
+	assert.False(t, logger.Enabled(), "Expected NoOpLogger when enabled=false, but Enabled() returned true")
 }
 
 func TestNewSlogLogger_WithOptions(t *testing.T) {
@@ -25,12 +23,8 @@ func TestNewSlogLogger_WithOptions(t *testing.T) {
 		dlog.WithIncludeFields([]string{"fieldA", "fieldB"}),
 		dlog.WithExcludeFields([]string{"fieldC"}),
 	)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
-	if !logger.Enabled() {
-		t.Error("Expected Enabled() to return true")
-	}
+	assert.True(t, logger.Enabled(), "Expected Enabled() to return true")
 }

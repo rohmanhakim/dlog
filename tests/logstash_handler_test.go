@@ -10,15 +10,15 @@ import (
 	"time"
 
 	"github.com/rohmanhakim/dlog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewLogstashHandler_NilOptions(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogstashHandler(&buf, nil)
 
-	if handler == nil {
-		t.Fatal("NewLogstashHandler returned nil")
-	}
+	require.NotNil(t, handler, "NewLogstashHandler returned nil")
 }
 
 func TestNewLogstashHandler_WithLevel(t *testing.T) {
@@ -30,14 +30,10 @@ func TestNewLogstashHandler_WithLevel(t *testing.T) {
 	ctx := context.Background()
 
 	// Info should be disabled when handler at Warn
-	if handler.Enabled(ctx, slog.LevelInfo) {
-		t.Error("Expected Info to be disabled with Warn level")
-	}
+	assert.False(t, handler.Enabled(ctx, slog.LevelInfo), "Expected Info to be disabled with Warn level")
 
 	// Warn should be enabled
-	if !handler.Enabled(ctx, slog.LevelWarn) {
-		t.Error("Expected Warn to be enabled")
-	}
+	assert.True(t, handler.Enabled(ctx, slog.LevelWarn), "Expected Warn to be enabled")
 }
 
 func TestLogstashHandler_Enabled(t *testing.T) {
@@ -89,9 +85,7 @@ func TestLogstashHandler_Enabled(t *testing.T) {
 			ctx := context.Background()
 			result := handler.Enabled(ctx, tt.checkLevel)
 
-			if result != tt.expected {
-				t.Errorf("Enabled(%v) = %v, want %v", tt.checkLevel, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "Enabled(%v)", tt.checkLevel)
 		})
 	}
 }
@@ -106,17 +100,15 @@ func TestLogstashHandler_Handle_ValidJSON(t *testing.T) {
 	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
-	if err := handler.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	output := buf.String()
 
 	// Verify it's valid JSON
 	var entry map[string]any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(output)), &entry); err != nil {
-		t.Fatalf("output is not valid JSON: %v, got: %s", err, output)
-	}
+	err = json.Unmarshal([]byte(strings.TrimSpace(output)), &entry)
+	require.NoError(t, err, "output is not valid JSON")
 }
 
 func TestLogstashHandler_Handle_RequiredFields(t *testing.T) {
@@ -129,25 +121,17 @@ func TestLogstashHandler_Handle_RequiredFields(t *testing.T) {
 	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
-	if err := handler.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	var entry map[string]any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Check required Logstash fields
-	if _, ok := entry["@timestamp"]; !ok {
-		t.Error("missing @timestamp field")
-	}
-	if entry["log.level"] != "INFO" {
-		t.Errorf("level should be 'INFO', got: %v", entry["log.level"])
-	}
-	if entry["message"] != "test message" {
-		t.Errorf("message should be 'test message', got: %v", entry["message"])
-	}
+	assert.Contains(t, entry, "@timestamp", "missing @timestamp field")
+	assert.Equal(t, "INFO", entry["log.level"], "level should be 'INFO'")
+	assert.Equal(t, "test message", entry["message"], "message should be 'test message'")
 }
 
 func TestLogstashHandler_Handle_WithFields(t *testing.T) {
@@ -164,22 +148,16 @@ func TestLogstashHandler_Handle_WithFields(t *testing.T) {
 		slog.Int("count", 42),
 	)
 
-	if err := handler.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	var entry map[string]any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Check custom fields
-	if entry["service"] != "billing-api" {
-		t.Errorf("service should be 'billing-api', got: %v", entry["service"])
-	}
-	if entry["count"] != float64(42) { // JSON numbers are float64
-		t.Errorf("count should be 42, got: %v", entry["count"])
-	}
+	assert.Equal(t, "billing-api", entry["service"], "service should be 'billing-api'")
+	assert.Equal(t, float64(42), entry["count"], "count should be 42") // JSON numbers are float64
 }
 
 func TestLogstashHandler_FieldFiltering(t *testing.T) {
@@ -262,27 +240,21 @@ func TestLogstashHandler_FieldFiltering(t *testing.T) {
 				record.AddAttrs(tt.attrs...)
 			}
 
-			if err := handler.Handle(ctx, record); err != nil {
-				t.Fatalf("Handle failed: %v", err)
-			}
+			err := handler.Handle(ctx, record)
+			require.NoError(t, err, "Handle failed")
 
 			var entry map[string]any
-			if err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry); err != nil {
-				t.Fatalf("failed to parse JSON: %v", err)
-			}
+			err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+			require.NoError(t, err, "failed to parse JSON")
 
 			// Check expected fields
 			for key, value := range tt.expected {
-				if entry[key] != value {
-					t.Errorf("entry[%q] = %v, want %v", key, entry[key], value)
-				}
+				assert.Equal(t, value, entry[key], "entry[%q]", key)
 			}
 
 			// Check fields that should not be present
 			for _, key := range tt.notExpected {
-				if _, ok := entry[key]; ok {
-					t.Errorf("entry should not contain %q", key)
-				}
+				assert.NotContains(t, entry, key, "entry should not contain %q", key)
 			}
 		})
 	}
@@ -300,14 +272,10 @@ func TestLogstashHandler_WithAttrs(t *testing.T) {
 		slog.String("version", "1.0.0"),
 	})
 
-	if newHandler == nil {
-		t.Fatal("WithAttrs returned nil")
-	}
+	require.NotNil(t, newHandler, "WithAttrs returned nil")
 
 	// The new handler should be different from the original
-	if newHandler == handler {
-		t.Error("WithAttrs should return a new handler")
-	}
+	assert.NotEqual(t, handler, newHandler, "WithAttrs should return a new handler")
 
 	// Verify the new handler works with pre-populated fields
 	ctx := context.Background()
@@ -320,18 +288,14 @@ func TestLogstashHandler_WithAttrs(t *testing.T) {
 		slog.String("pre_field", "pre_value"),
 	})
 
-	if err := handlerWithAttrs.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handlerWithAttrs.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	var entry map[string]any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(newBuf.String())), &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal([]byte(strings.TrimSpace(newBuf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
-	if entry["pre_field"] != "pre_value" {
-		t.Errorf("entry should contain pre_field=pre_value, got: %v", entry["pre_field"])
-	}
+	assert.Equal(t, "pre_value", entry["pre_field"], "entry should contain pre_field=pre_value")
 }
 
 func TestLogstashHandler_WithAttrs_Empty(t *testing.T) {
@@ -343,9 +307,7 @@ func TestLogstashHandler_WithAttrs_Empty(t *testing.T) {
 	// With empty attrs should return same handler
 	newHandler := handler.WithAttrs([]slog.Attr{})
 
-	if newHandler != handler {
-		t.Error("WithAttrs with empty attrs should return same handler")
-	}
+	assert.Same(t, handler, newHandler, "WithAttrs with empty attrs should return same handler")
 }
 
 func TestLogstashHandler_WithGroup(t *testing.T) {
@@ -357,14 +319,10 @@ func TestLogstashHandler_WithGroup(t *testing.T) {
 	// WithGroup should return a new handler with group prefix
 	newHandler := handler.WithGroup("request")
 
-	if newHandler == nil {
-		t.Fatal("WithGroup returned nil")
-	}
+	require.NotNil(t, newHandler, "WithGroup returned nil")
 
 	// The new handler should be different from the original
-	if newHandler == handler {
-		t.Error("WithGroup should return a new handler")
-	}
+	assert.NotEqual(t, handler, newHandler, "WithGroup should return a new handler")
 }
 
 func TestLogstashHandler_WithGroup_Empty(t *testing.T) {
@@ -376,9 +334,7 @@ func TestLogstashHandler_WithGroup_Empty(t *testing.T) {
 	// WithGroup with empty name should return same handler
 	newHandler := handler.WithGroup("")
 
-	if newHandler != handler {
-		t.Error("WithGroup with empty name should return same handler")
-	}
+	assert.Same(t, handler, newHandler, "WithGroup with empty name should return same handler")
 }
 
 func TestLogstashHandler_WithGroup_PrefixFields(t *testing.T) {
@@ -396,19 +352,15 @@ func TestLogstashHandler_WithGroup_PrefixFields(t *testing.T) {
 	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
-	if err := handlerWithGroupAndAttrs.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handlerWithGroupAndAttrs.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	var entry map[string]any
-	if err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Field should be prefixed with group name
-	if entry["request.id"] != "abc123" {
-		t.Errorf("entry should contain request.id=abc123, got: %v", entry["request.id"])
-	}
+	assert.Equal(t, "abc123", entry["request.id"], "entry should contain request.id=abc123")
 }
 
 func TestLogstashHandler_ImplementsSlogHandler(t *testing.T) {
@@ -455,18 +407,14 @@ func TestLogstashHandler_LevelNames(t *testing.T) {
 			now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
 			record := slog.NewRecord(now, tt.level, "test message", 0)
 
-			if err := handler.Handle(ctx, record); err != nil {
-				t.Fatalf("Handle failed: %v", err)
-			}
+			err := handler.Handle(ctx, record)
+			require.NoError(t, err, "Handle failed")
 
 			var entry map[string]any
-			if err := json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry); err != nil {
-				t.Fatalf("failed to parse JSON: %v", err)
-			}
+			err = json.Unmarshal([]byte(strings.TrimSpace(buf.String())), &entry)
+			require.NoError(t, err, "failed to parse JSON")
 
-			if entry["log.level"] != tt.expectedLevel {
-				t.Errorf("log.level = %v, want %v", entry["log.level"], tt.expectedLevel)
-			}
+			assert.Equal(t, tt.expectedLevel, entry["log.level"], "log.level")
 		})
 	}
 }
@@ -489,22 +437,18 @@ func TestLogstashHandler_Integration(t *testing.T) {
 	}
 
 	for _, record := range records {
-		if err := handler.Handle(ctx, record); err != nil {
-			t.Fatalf("Handle failed: %v", err)
-		}
+		err := handler.Handle(ctx, record)
+		require.NoError(t, err, "Handle failed")
 	}
 
 	// Each record should be on its own line (JSONL format)
 	lines := strings.Split(strings.TrimSpace(buf.String()), "\n")
-	if len(lines) != 4 {
-		t.Fatalf("expected 4 lines, got %d", len(lines))
-	}
+	require.Equal(t, 4, len(lines), "expected 4 lines")
 
 	// Each line should be valid JSON
 	for i, line := range lines {
 		var entry map[string]any
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			t.Errorf("line %d: failed to parse JSON: %v", i+1, err)
-		}
+		err := json.Unmarshal([]byte(line), &entry)
+		require.NoError(t, err, "line %d: failed to parse JSON", i+1)
 	}
 }

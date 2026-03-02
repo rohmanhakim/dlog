@@ -9,30 +9,24 @@ import (
 	"testing"
 
 	"github.com/rohmanhakim/dlog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewSlogLogger_DisabledReturnsNoOp(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(false, dlog.FormatJSON, "")
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Should return NoOpLogger when disabled
-	if logger.Enabled() {
-		t.Error("Expected NoOpLogger when Enabled=false, but Enabled() returned true")
-	}
+	assert.False(t, logger.Enabled(), "Expected NoOpLogger when Enabled=false, but Enabled() returned true")
 }
 
 func TestNewSlogLogger_EnabledReturnsSlogLogger(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
-	if !logger.Enabled() {
-		t.Error("Expected Enabled() to return true for SlogLogger")
-	}
+	assert.True(t, logger.Enabled(), "Expected Enabled() to return true for SlogLogger")
 }
 
 func TestNewSlogLogger_WithFile(t *testing.T) {
@@ -40,15 +34,12 @@ func TestNewSlogLogger_WithFile(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "slog-test.jsonl")
 
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
 	// Verify file was created
-	if _, err := os.Stat(outputFile); os.IsNotExist(err) {
-		t.Errorf("output file was not created: %s", outputFile)
-	}
+	_, err = os.Stat(outputFile)
+	require.NoError(t, err, "output file was not created: %s", outputFile)
 }
 
 func TestNewSlogLogger_Formats(t *testing.T) {
@@ -77,14 +68,10 @@ func TestNewSlogLogger_Formats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, err := dlog.NewSlogLogger(true, tt.format, "")
-			if err != nil {
-				t.Fatalf("NewSlogLogger failed: %v", err)
-			}
+			require.NoError(t, err, "NewSlogLogger failed")
 			defer logger.Close()
 
-			if !logger.Enabled() {
-				t.Error("Expected Enabled() to return true")
-			}
+			assert.True(t, logger.Enabled(), "Expected Enabled() to return true")
 		})
 	}
 }
@@ -121,9 +108,7 @@ func TestSlogLogger_LogLevels(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			logger, err := dlog.NewSlogLogger(true, dlog.FormatText, "")
-			if err != nil {
-				t.Fatalf("NewSlogLogger failed: %v", err)
-			}
+			require.NoError(t, err, "NewSlogLogger failed")
 			defer logger.Close()
 
 			ctx := context.Background()
@@ -137,9 +122,7 @@ func TestSlogLogger_LogLevels(t *testing.T) {
 
 func TestSlogLogger_LogError(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
 	ctx := context.Background()
@@ -154,9 +137,7 @@ func TestSlogLogger_LogError_NilError(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "nil-error-test.jsonl")
 
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
 	ctx := context.Background()
@@ -168,36 +149,25 @@ func TestSlogLogger_LogError_NilError(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Verify message is logged correctly (not hardcoded "Error occurred")
-	if entry["message"] != "test message" {
-		t.Errorf("expected message='test message', got %v", entry["message"])
-	}
+	assert.Equal(t, "test message", entry["message"], "expected message='test message'")
 
 	// Verify error field is not present when err is nil
-	if _, ok := entry["error"]; ok {
-		t.Errorf("expected no error field when err is nil, but got: %v", entry["error"])
-	}
+	assert.NotContains(t, entry, "error", "expected no error field when err is nil")
 
 	// Verify other fields are present
-	if entry["key"] != "value" {
-		t.Errorf("expected key=value, got %v", entry["key"])
-	}
+	assert.Equal(t, "value", entry["key"], "expected key=value")
 }
 
 func TestSlogLogger_WithFields(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
 	fields := dlog.FieldMap{
@@ -208,19 +178,12 @@ func TestSlogLogger_WithFields(t *testing.T) {
 
 	newLogger := logger.WithFields(fields)
 
-	if newLogger == nil {
-		t.Fatal("WithFields returned nil")
-	}
-
-	if !newLogger.Enabled() {
-		t.Error("WithFields logger should have Enabled() = true")
-	}
+	require.NotNil(t, newLogger, "WithFields returned nil")
+	assert.True(t, newLogger.Enabled(), "WithFields logger should have Enabled() = true")
 
 	// Both loggers should be independent
 	newLogger2 := newLogger.WithFields(dlog.FieldMap{"extra": "field"})
-	if newLogger2 == nil {
-		t.Fatal("second WithFields returned nil")
-	}
+	require.NotNil(t, newLogger2, "second WithFields returned nil")
 }
 
 func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
@@ -228,9 +191,7 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "withfields-test.jsonl")
 
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Add pre-populated fields
 	loggerWithFields := logger.WithFields(dlog.FieldMap{
@@ -244,42 +205,28 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Verify pre-populated field is present
-	if entry["service"] != "billing-api" {
-		t.Errorf("expected service=billing-api, got %v", entry["service"])
-	}
+	assert.Equal(t, "billing-api", entry["service"], "expected service=billing-api")
 
 	// Verify additional field is present
-	if entry["extra"] != "value" {
-		t.Errorf("expected extra=value, got %v", entry["extra"])
-	}
+	assert.Equal(t, "value", entry["extra"], "expected extra=value")
 }
 
 func TestSlogLogger_WithGroup(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
 	loggerWithGroup := logger.WithGroup("myservice")
 
-	if loggerWithGroup == nil {
-		t.Fatal("WithGroup returned nil")
-	}
-
-	if !loggerWithGroup.Enabled() {
-		t.Error("WithGroup logger should have Enabled() = true")
-	}
+	require.NotNil(t, loggerWithGroup, "WithGroup returned nil")
+	assert.True(t, loggerWithGroup.Enabled(), "WithGroup logger should have Enabled() = true")
 }
 
 func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
@@ -288,9 +235,7 @@ func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
 
 	// Use FormatLogstash for flattened group keys
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Add pre-populated fields and group
 	loggerWithFields := logger.WithFields(dlog.FieldMap{
@@ -305,25 +250,18 @@ func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Note: preAttrs are also affected by WithGroup since they're logged through the grouped logger
 	// Verify pre-populated field is prefixed with group name
-	if entry["request.service"] != "billing-api" {
-		t.Errorf("expected request.service=billing-api, got %v", entry["request.service"])
-	}
+	assert.Equal(t, "billing-api", entry["request.service"], "expected request.service=billing-api")
 
 	// Verify grouped field is prefixed with group name
-	if entry["request.id"] != "abc123" {
-		t.Errorf("expected request.id=abc123, got %v", entry["request.id"])
-	}
+	assert.Equal(t, "abc123", entry["request.id"], "expected request.id=abc123")
 }
 
 func TestSlogLogger_WithGroupChained(t *testing.T) {
@@ -332,9 +270,7 @@ func TestSlogLogger_WithGroupChained(t *testing.T) {
 
 	// Use FormatLogstash for flattened group keys
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Chain WithFields and WithGroup
 	logger = logger.WithFields(dlog.FieldMap{"app": "myapp"}).
@@ -348,26 +284,17 @@ func TestSlogLogger_WithGroupChained(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Note: preAttrs are also affected by WithGroup since they're logged through the grouped logger
 	// Verify all fields are prefixed with group name
-	if entry["myservice.app"] != "myapp" {
-		t.Errorf("expected myservice.app=myapp, got %v", entry["myservice.app"])
-	}
-	if entry["myservice.component"] != "scheduler" {
-		t.Errorf("expected myservice.component=scheduler, got %v", entry["myservice.component"])
-	}
-	if entry["myservice.operation"] != "retry" {
-		t.Errorf("expected myservice.operation=retry, got %v", entry["myservice.operation"])
-	}
+	assert.Equal(t, "myapp", entry["myservice.app"], "expected myservice.app=myapp")
+	assert.Equal(t, "scheduler", entry["myservice.component"], "expected myservice.component=scheduler")
+	assert.Equal(t, "retry", entry["myservice.operation"], "expected myservice.operation=retry")
 }
 
 func TestSlogLogger_Close(t *testing.T) {
@@ -376,24 +303,18 @@ func TestSlogLogger_Close(t *testing.T) {
 		outputFile := filepath.Join(tmpDir, "close-test.jsonl")
 
 		logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile)
-		if err != nil {
-			t.Fatalf("NewSlogLogger failed: %v", err)
-		}
+		require.NoError(t, err, "NewSlogLogger failed")
 
-		if err := logger.Close(); err != nil {
-			t.Errorf("Close failed: %v", err)
-		}
+		err = logger.Close()
+		assert.NoError(t, err, "Close failed")
 	})
 
 	t.Run("close without file", func(t *testing.T) {
 		logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
-		if err != nil {
-			t.Fatalf("NewSlogLogger failed: %v", err)
-		}
+		require.NoError(t, err, "NewSlogLogger failed")
 
-		if err := logger.Close(); err != nil {
-			t.Errorf("Close failed: %v", err)
-		}
+		err = logger.Close()
+		assert.NoError(t, err, "Close failed")
 	})
 }
 
@@ -403,9 +324,7 @@ func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 
 	// Use FormatLogstash for @timestamp, log.level, message fields
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
 
@@ -419,33 +338,21 @@ func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 
 	// Verify output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	lines := strings.Split(strings.TrimSpace(string(content)), "\n")
-	if len(lines) != 4 {
-		t.Fatalf("expected 4 log lines, got %d", len(lines))
-	}
+	require.Equal(t, 4, len(lines), "expected 4 log lines")
 
 	// Verify each line is valid JSON with expected fields
 	for i, line := range lines {
 		var entry map[string]any
-		if err := json.Unmarshal([]byte(line), &entry); err != nil {
-			t.Errorf("line %d: failed to parse JSON: %v", i+1, err)
-			continue
-		}
+		err := json.Unmarshal([]byte(line), &entry)
+		require.NoError(t, err, "line %d: failed to parse JSON", i+1)
 
 		// Check required fields
-		if _, ok := entry["@timestamp"]; !ok {
-			t.Errorf("line %d: missing @timestamp", i+1)
-		}
-		if _, ok := entry["log.level"]; !ok {
-			t.Errorf("line %d: missing level", i+1)
-		}
-		if _, ok := entry["message"]; !ok {
-			t.Errorf("line %d: missing message", i+1)
-		}
+		assert.Contains(t, entry, "@timestamp", "line %d: missing @timestamp", i+1)
+		assert.Contains(t, entry, "log.level", "line %d: missing level", i+1)
+		assert.Contains(t, entry, "message", "line %d: missing message", i+1)
 	}
 }
 
@@ -454,9 +361,7 @@ func TestSlogLogger_Integration_TextFormat(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "integration-text.txt")
 
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatText, outputFile)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
 	logger.LogInfo(ctx, "test message", dlog.FieldMap{"key": "value"})
@@ -465,22 +370,14 @@ func TestSlogLogger_Integration_TextFormat(t *testing.T) {
 
 	// Verify output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	output := string(content)
 
 	// Check for expected patterns
-	if !strings.Contains(output, "[INFO]") {
-		t.Errorf("output should contain [INFO], got: %s", output)
-	}
-	if !strings.Contains(output, "test message") {
-		t.Errorf("output should contain 'test message', got: %s", output)
-	}
-	if !strings.Contains(output, "key=value") {
-		t.Errorf("output should contain 'key=value', got: %s", output)
-	}
+	assert.Contains(t, output, "[INFO]", "output should contain [INFO]")
+	assert.Contains(t, output, "test message", "output should contain 'test message'")
+	assert.Contains(t, output, "key=value", "output should contain 'key=value'")
 }
 
 func TestSlogLogger_WithFieldsOption(t *testing.T) {
@@ -494,9 +391,7 @@ func TestSlogLogger_WithFieldsOption(t *testing.T) {
 			"version": "1.0.0",
 		}),
 	)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
 	logger.LogInfo(ctx, "test message", dlog.FieldMap{"extra": "value"})
@@ -505,27 +400,18 @@ func TestSlogLogger_WithFieldsOption(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Verify pre-populated fields are present
-	if entry["service"] != "billing-api" {
-		t.Errorf("expected service=billing-api, got %v", entry["service"])
-	}
-	if entry["version"] != "1.0.0" {
-		t.Errorf("expected version=1.0.0, got %v", entry["version"])
-	}
+	assert.Equal(t, "billing-api", entry["service"], "expected service=billing-api")
+	assert.Equal(t, "1.0.0", entry["version"], "expected version=1.0.0")
 
 	// Verify additional field is present
-	if entry["extra"] != "value" {
-		t.Errorf("expected extra=value, got %v", entry["extra"])
-	}
+	assert.Equal(t, "value", entry["extra"], "expected extra=value")
 }
 
 func TestSlogLogger_WithGroupOption(t *testing.T) {
@@ -536,9 +422,7 @@ func TestSlogLogger_WithGroupOption(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, outputFile,
 		dlog.WithGroup("myservice"),
 	)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
 	logger.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
@@ -547,19 +431,14 @@ func TestSlogLogger_WithGroupOption(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Verify grouped field is prefixed with group name
-	if entry["myservice.id"] != "abc123" {
-		t.Errorf("expected myservice.id=abc123, got %v", entry["myservice.id"])
-	}
+	assert.Equal(t, "abc123", entry["myservice.id"], "expected myservice.id=abc123")
 }
 
 func TestSlogLogger_WithFieldsAndGroupOptions(t *testing.T) {
@@ -573,9 +452,7 @@ func TestSlogLogger_WithFieldsAndGroupOptions(t *testing.T) {
 		}),
 		dlog.WithGroup("myservice"),
 	)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
 	logger.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
@@ -584,24 +461,17 @@ func TestSlogLogger_WithFieldsAndGroupOptions(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Verify pre-populated field is prefixed with group name
-	if entry["myservice.service"] != "billing-api" {
-		t.Errorf("expected myservice.service=billing-api, got %v", entry["myservice.service"])
-	}
+	assert.Equal(t, "billing-api", entry["myservice.service"], "expected myservice.service=billing-api")
 
 	// Verify additional field is prefixed with group name
-	if entry["myservice.id"] != "abc123" {
-		t.Errorf("expected myservice.id=abc123, got %v", entry["myservice.id"])
-	}
+	assert.Equal(t, "abc123", entry["myservice.id"], "expected myservice.id=abc123")
 }
 
 func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
@@ -615,9 +485,7 @@ func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
 		}),
 		dlog.WithGroup("myservice"),
 	)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Chain additional WithFields on the created logger
 	derivedLogger := logger.WithFields(dlog.FieldMap{"component": "scheduler"})
@@ -629,25 +497,16 @@ func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// Verify all fields are prefixed with group name
-	if entry["myservice.service"] != "billing-api" {
-		t.Errorf("expected myservice.service=billing-api, got %v", entry["myservice.service"])
-	}
-	if entry["myservice.component"] != "scheduler" {
-		t.Errorf("expected myservice.component=scheduler, got %v", entry["myservice.component"])
-	}
-	if entry["myservice.operation"] != "retry" {
-		t.Errorf("expected myservice.operation=retry, got %v", entry["myservice.operation"])
-	}
+	assert.Equal(t, "billing-api", entry["myservice.service"], "expected myservice.service=billing-api")
+	assert.Equal(t, "scheduler", entry["myservice.component"], "expected myservice.component=scheduler")
+	assert.Equal(t, "retry", entry["myservice.operation"], "expected myservice.operation=retry")
 }
 
 func TestSlogLogger_JSONFormat_NestedGroups(t *testing.T) {
@@ -658,9 +517,7 @@ func TestSlogLogger_JSONFormat_NestedGroups(t *testing.T) {
 	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, outputFile,
 		dlog.WithGroup("myservice"),
 	)
-	if err != nil {
-		t.Fatalf("NewSlogLogger failed: %v", err)
-	}
+	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
 	logger.LogInfo(ctx, "test message", dlog.FieldMap{"id": "abc123"})
@@ -669,24 +526,17 @@ func TestSlogLogger_JSONFormat_NestedGroups(t *testing.T) {
 
 	// Read and parse the output
 	content, err := os.ReadFile(outputFile)
-	if err != nil {
-		t.Fatalf("failed to read output file: %v", err)
-	}
+	require.NoError(t, err, "failed to read output file")
 
 	var entry map[string]any
-	if err := json.Unmarshal(content, &entry); err != nil {
-		t.Fatalf("failed to parse JSON: %v", err)
-	}
+	err = json.Unmarshal(content, &entry)
+	require.NoError(t, err, "failed to parse JSON")
 
 	// FormatJSON uses nested objects, not flattened keys
 	myservice, ok := entry["myservice"].(map[string]any)
-	if !ok {
-		t.Fatalf("expected myservice to be a nested object, got %v", entry["myservice"])
-	}
+	require.True(t, ok, "expected myservice to be a nested object")
 
-	if myservice["id"] != "abc123" {
-		t.Errorf("expected myservice.id=abc123, got %v", myservice["id"])
-	}
+	assert.Equal(t, "abc123", myservice["id"], "expected myservice.id=abc123")
 }
 
 func TestSlogLogger_ImplementsDebugLogger(t *testing.T) {

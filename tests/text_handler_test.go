@@ -4,20 +4,19 @@ import (
 	"bytes"
 	"context"
 	"log/slog"
-	"strings"
 	"testing"
 	"time"
 
 	"github.com/rohmanhakim/dlog"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func TestNewTextHandler_NilOptions(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, nil)
 
-	if handler == nil {
-		t.Fatal("NewTextHandler returned nil")
-	}
+	require.NotNil(t, handler, "NewTextHandler returned nil")
 }
 
 func TestNewTextHandler_WithLevel(t *testing.T) {
@@ -29,14 +28,10 @@ func TestNewTextHandler_WithLevel(t *testing.T) {
 	ctx := context.Background()
 
 	// Debug should be disabled
-	if handler.Enabled(ctx, slog.LevelDebug) {
-		t.Error("Expected Debug to be disabled with Info level")
-	}
+	assert.False(t, handler.Enabled(ctx, slog.LevelDebug), "Expected Debug to be disabled with Info level")
 
 	// Info should be enabled
-	if !handler.Enabled(ctx, slog.LevelInfo) {
-		t.Error("Expected Info to be enabled")
-	}
+	assert.True(t, handler.Enabled(ctx, slog.LevelInfo), "Expected Info to be enabled")
 }
 
 func TestTextHandler_Enabled(t *testing.T) {
@@ -94,9 +89,7 @@ func TestTextHandler_Enabled(t *testing.T) {
 			ctx := context.Background()
 			result := handler.Enabled(ctx, tt.checkLevel)
 
-			if result != tt.expected {
-				t.Errorf("Enabled(%v) = %v, want %v", tt.checkLevel, result, tt.expected)
-			}
+			assert.Equal(t, tt.expected, result, "Enabled(%v)", tt.checkLevel)
 		})
 	}
 }
@@ -111,26 +104,19 @@ func TestTextHandler_Handle(t *testing.T) {
 	now := time.Date(2026, 3, 1, 10, 30, 0, 0, time.UTC)
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
-	if err := handler.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	output := buf.String()
 
 	// Check output contains timestamp
-	if !strings.Contains(output, "2026-03-01T10:30:00.000Z") {
-		t.Errorf("output should contain timestamp, got: %s", output)
-	}
+	assert.Contains(t, output, "2026-03-01T10:30:00.000Z")
 
 	// Check output contains level
-	if !strings.Contains(output, "[INFO]") {
-		t.Errorf("output should contain [INFO], got: %s", output)
-	}
+	assert.Contains(t, output, "[INFO]")
 
 	// Check output contains message
-	if !strings.Contains(output, "test message") {
-		t.Errorf("output should contain message, got: %s", output)
-	}
+	assert.Contains(t, output, "test message")
 }
 
 func TestTextHandler_HandleWithFields(t *testing.T) {
@@ -147,19 +133,14 @@ func TestTextHandler_HandleWithFields(t *testing.T) {
 		slog.Int("count", 42),
 	)
 
-	if err := handler.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handler.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	output := buf.String()
 
 	// Check fields are present
-	if !strings.Contains(output, "service=billing-api") {
-		t.Errorf("output should contain service field, got: %s", output)
-	}
-	if !strings.Contains(output, "count=42") {
-		t.Errorf("output should contain count field, got: %s", output)
-	}
+	assert.Contains(t, output, "service=billing-api")
+	assert.Contains(t, output, "count=42")
 }
 
 func TestTextHandler_FieldFiltering(t *testing.T) {
@@ -233,24 +214,19 @@ func TestTextHandler_FieldFiltering(t *testing.T) {
 				record.AddAttrs(tt.attrs...)
 			}
 
-			if err := handler.Handle(ctx, record); err != nil {
-				t.Fatalf("Handle failed: %v", err)
-			}
+			err := handler.Handle(ctx, record)
+			require.NoError(t, err, "Handle failed")
 
 			output := buf.String()
 
 			// Check expected content
 			for _, s := range tt.contains {
-				if !strings.Contains(output, s) {
-					t.Errorf("output should contain %q, got: %s", s, output)
-				}
+				assert.Contains(t, output, s)
 			}
 
 			// Check content that should not be present
 			for _, s := range tt.notContains {
-				if strings.Contains(output, s) {
-					t.Errorf("output should not contain %q, got: %s", s, output)
-				}
+				assert.NotContains(t, output, s)
 			}
 		})
 	}
@@ -268,14 +244,10 @@ func TestTextHandler_WithAttrs(t *testing.T) {
 		slog.String("version", "1.0.0"),
 	})
 
-	if newHandler == nil {
-		t.Fatal("WithAttrs returned nil")
-	}
+	require.NotNil(t, newHandler, "WithAttrs returned nil")
 
 	// The new handler should be different from the original
-	if newHandler == handler {
-		t.Error("WithAttrs should return a new handler")
-	}
+	assert.NotEqual(t, handler, newHandler, "WithAttrs should return a new handler")
 
 	// Verify the new handler works
 	ctx := context.Background()
@@ -288,14 +260,11 @@ func TestTextHandler_WithAttrs(t *testing.T) {
 		slog.String("pre_field", "pre_value"),
 	})
 
-	if err := handlerWithAttrs.Handle(ctx, record); err != nil {
-		t.Fatalf("Handle failed: %v", err)
-	}
+	err := handlerWithAttrs.Handle(ctx, record)
+	require.NoError(t, err, "Handle failed")
 
 	output := newBuf.String()
-	if !strings.Contains(output, "pre_field=pre_value") {
-		t.Errorf("output should contain pre-populated field, got: %s", output)
-	}
+	assert.Contains(t, output, "pre_field=pre_value")
 }
 
 func TestTextHandler_WithAttrs_Empty(t *testing.T) {
@@ -307,9 +276,7 @@ func TestTextHandler_WithAttrs_Empty(t *testing.T) {
 	// With empty attrs should return same handler
 	newHandler := handler.WithAttrs([]slog.Attr{})
 
-	if newHandler != handler {
-		t.Error("WithAttrs with empty attrs should return same handler")
-	}
+	assert.Same(t, handler, newHandler, "WithAttrs with empty attrs should return same handler")
 }
 
 func TestTextHandler_WithGroup(t *testing.T) {
@@ -321,9 +288,7 @@ func TestTextHandler_WithGroup(t *testing.T) {
 	// WithGroup is a no-op for TextHandler, should return same handler
 	newHandler := handler.WithGroup("test-group")
 
-	if newHandler != handler {
-		t.Error("WithGroup should return same handler (no-op for TextHandler)")
-	}
+	assert.Same(t, handler, newHandler, "WithGroup should return same handler (no-op for TextHandler)")
 }
 
 func TestTextHandler_ImplementsSlogHandler(t *testing.T) {
@@ -397,15 +362,12 @@ func TestTextHandler_Format(t *testing.T) {
 				record.AddAttrs(tt.attrs...)
 			}
 
-			if err := handler.Handle(ctx, record); err != nil {
-				t.Fatalf("Handle failed: %v", err)
-			}
+			err := handler.Handle(ctx, record)
+			require.NoError(t, err, "Handle failed")
 
 			output := buf.String()
 			for _, s := range tt.contains {
-				if !strings.Contains(output, s) {
-					t.Errorf("output should contain %q, got: %s", s, output)
-				}
+				assert.Contains(t, output, s)
 			}
 		})
 	}
