@@ -35,8 +35,8 @@ func main() {
     // Execute with initialized slog wrapper options
     logger, err := dlog.NewSlogLogger(
         true, // enabled
-        "debug.log",
-        dlog.FormatLogstash,
+        dlog.FormatLogstash, // specify log format
+        dlog.WithOutputFile("debug.log"), // optional log file, will use stdout-only if not specified
         dlog.WithMinLevel(slog.LevelDebug),
         dlog.WithSyncMode(dlog.SyncPeriodic),
         dlog.WithSyncInterval(1*time.Second),
@@ -72,6 +72,7 @@ The `NewSlogLogger` function accepts multiple functional options. All options ha
 | `WithExcludeFields(fields []string)` | Strip sensitive fields from output | Empty list (exclude none) |
 | `WithFields(fields FieldMap)` | Pre-populate the logger with persistent fields | `nil` |
 | `WithGroup(name string)` | Prefix subsequent attributes with a group name | `""` |
+| `WithOutputFile(path string)` | Enable file output in addition to stdout | `""` (stdout only) |
 | `WithSyncMode(mode SyncMode)` | Control file buffering logic (see Sync Modes below) | `SyncImmediate` |
 | `WithSyncInterval(interval time.Duration)` | Override flushing interval for `SyncPeriodic` | `1 second` |
 
@@ -92,7 +93,7 @@ Filter noisy attributes directly without parsing intermediate payloads. Excludes
 
 ```go
 logger, _ := dlog.NewSlogLogger(
-    true, "", dlog.FormatJSON,
+    true, dlog.FormatJSON,
     dlog.WithExcludeFields([]string{"password", "token"}),
 )
 // Result: `password` and `token` attributes are quietly dropped from final output.
@@ -138,7 +139,7 @@ type SyncMode int
 ### Functions
 ```go
 // Creates a new SlogLogger with the given configuration
-func NewSlogLogger(enabled bool, outputFile string, format Format, opts ...Option) (DebugLogger, error)
+func NewSlogLogger(enabled bool, format Format, opts ...Option) (DebugLogger, error)
 
 // Creates a NoOpLogger
 func NewNoOpLogger() DebugLogger
@@ -149,6 +150,7 @@ func WithIncludeFields(fields []string) Option
 func WithExcludeFields(fields []string) Option
 func WithFields(fields FieldMap) Option
 func WithGroup(name string) Option
+func WithOutputFile(path string) Option
 func WithSyncMode(mode SyncMode) Option
 func WithSyncInterval(interval time.Duration) Option
 ```

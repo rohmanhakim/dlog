@@ -52,6 +52,9 @@ type config struct {
 	// groupName is the group name for all subsequent attributes.
 	groupName string
 
+	// outputFile is the path for file output (empty = stdout only).
+	outputFile string
+
 	// syncMode determines when file writes are flushed to disk.
 	syncMode SyncMode
 
@@ -113,5 +116,13 @@ func WithSyncMode(mode SyncMode) Option {
 func WithSyncInterval(interval time.Duration) Option {
 	return func(c *config) {
 		c.syncInterval = interval
+	}
+}
+
+// WithOutputFile enables file output in addition to stdout.
+// If not called, logs are written to stdout only.
+func WithOutputFile(path string) Option {
+	return func(c *config) {
+		c.outputFile = path
 	}
 }

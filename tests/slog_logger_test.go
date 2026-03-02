@@ -14,7 +14,7 @@ import (
 )
 
 func TestNewSlogLogger_DisabledReturnsNoOp(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(false, "", dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(false, dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Should return NoOpLogger when disabled
@@ -22,7 +22,7 @@ func TestNewSlogLogger_DisabledReturnsNoOp(t *testing.T) {
 }
 
 func TestNewSlogLogger_EnabledReturnsSlogLogger(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
@@ -33,7 +33,7 @@ func TestNewSlogLogger_WithFile(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "slog-test.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
@@ -67,7 +67,7 @@ func TestNewSlogLogger_Formats(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := dlog.NewSlogLogger(true, "", tt.format)
+			logger, err := dlog.NewSlogLogger(true, tt.format)
 			require.NoError(t, err, "NewSlogLogger failed")
 			defer logger.Close()
 
@@ -107,7 +107,7 @@ func TestSlogLogger_LogLevels(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			logger, err := dlog.NewSlogLogger(true, "", dlog.FormatText)
+			logger, err := dlog.NewSlogLogger(true, dlog.FormatText)
 			require.NoError(t, err, "NewSlogLogger failed")
 			defer logger.Close()
 
@@ -121,7 +121,7 @@ func TestSlogLogger_LogLevels(t *testing.T) {
 }
 
 func TestSlogLogger_LogError(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
@@ -136,7 +136,7 @@ func TestSlogLogger_LogError_NilError(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "nil-error-test.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
@@ -166,7 +166,7 @@ func TestSlogLogger_LogError_NilError(t *testing.T) {
 }
 
 func TestSlogLogger_WithFields(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
@@ -190,7 +190,7 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "withfields-test.jsonl")
 
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Add pre-populated fields
@@ -219,7 +219,7 @@ func TestSlogLogger_WithFieldsPreservesFields(t *testing.T) {
 }
 
 func TestSlogLogger_WithGroup(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 	defer logger.Close()
 
@@ -234,7 +234,7 @@ func TestSlogLogger_WithGroupPreservesFields(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "withgroup-test.jsonl")
 
 	// Use FormatLogstash for flattened group keys
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Add pre-populated fields and group
@@ -269,7 +269,7 @@ func TestSlogLogger_WithGroupChained(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "withgroupchained-test.jsonl")
 
 	// Use FormatLogstash for flattened group keys
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Chain WithFields and WithGroup
@@ -302,7 +302,7 @@ func TestSlogLogger_Close(t *testing.T) {
 		tmpDir := t.TempDir()
 		outputFile := filepath.Join(tmpDir, "close-test.jsonl")
 
-		logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatJSON)
+		logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, dlog.WithOutputFile(outputFile))
 		require.NoError(t, err, "NewSlogLogger failed")
 
 		err = logger.Close()
@@ -310,7 +310,7 @@ func TestSlogLogger_Close(t *testing.T) {
 	})
 
 	t.Run("close without file", func(t *testing.T) {
-		logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+		logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON)
 		require.NoError(t, err, "NewSlogLogger failed")
 
 		err = logger.Close()
@@ -322,7 +322,7 @@ func TestNewSlogLogger_InvalidFilePath(t *testing.T) {
 	// Test that NewSlogLogger returns error when NewMultiWriter fails
 	invalidPath := "/nonexistent/directory/test.log"
 
-	logger, err := dlog.NewSlogLogger(true, invalidPath, dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, dlog.WithOutputFile(invalidPath))
 	require.Error(t, err, "expected error for invalid file path")
 	assert.Nil(t, logger, "expected nil logger on error")
 	assert.Contains(t, err.Error(), "failed to open debug log file", "expected error to contain file open message")
@@ -331,7 +331,7 @@ func TestNewSlogLogger_InvalidFilePath(t *testing.T) {
 func TestSlogLogger_Close_NilCloser(t *testing.T) {
 	// Test Close() when s.closer == nil
 	// This happens when logger is created without a file output
-	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Close should return nil when closer is nil
@@ -344,7 +344,7 @@ func TestSlogLogger_Integration_JSONFormat(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "integration-json.jsonl")
 
 	// Use FormatLogstash for @timestamp, log.level, message fields
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
@@ -381,7 +381,7 @@ func TestSlogLogger_Integration_TextFormat(t *testing.T) {
 	tmpDir := t.TempDir()
 	outputFile := filepath.Join(tmpDir, "integration-text.txt")
 
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatText)
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatText, dlog.WithOutputFile(outputFile))
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	ctx := context.Background()
@@ -406,7 +406,8 @@ func TestSlogLogger_WithFieldsOption(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "withfields-option-test.jsonl")
 
 	// Create logger with WithFields functional option
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatJSON,
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON,
+		dlog.WithOutputFile(outputFile),
 		dlog.WithFields(dlog.FieldMap{
 			"service": "billing-api",
 			"version": "1.0.0",
@@ -440,7 +441,8 @@ func TestSlogLogger_WithGroupOption(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "withgroup-option-test.jsonl")
 
 	// Use FormatLogstash for flattened group keys
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash,
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash,
+		dlog.WithOutputFile(outputFile),
 		dlog.WithGroup("myservice"),
 	)
 	require.NoError(t, err, "NewSlogLogger failed")
@@ -467,7 +469,8 @@ func TestSlogLogger_WithFieldsAndGroupOptions(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "withfields-group-option-test.jsonl")
 
 	// Use FormatLogstash for flattened group keys
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash,
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash,
+		dlog.WithOutputFile(outputFile),
 		dlog.WithFields(dlog.FieldMap{
 			"service": "billing-api",
 		}),
@@ -500,7 +503,8 @@ func TestSlogLogger_FunctionalOptionsCombinedWithChaining(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "combined-test.jsonl")
 
 	// Use FormatLogstash for flattened group keys
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatLogstash,
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash,
+		dlog.WithOutputFile(outputFile),
 		dlog.WithFields(dlog.FieldMap{
 			"service": "billing-api",
 		}),
@@ -535,7 +539,8 @@ func TestSlogLogger_JSONFormat_NestedGroups(t *testing.T) {
 	outputFile := filepath.Join(tmpDir, "json-nested-test.jsonl")
 
 	// FormatJSON produces nested structures (standard slog.JSONHandler behavior)
-	logger, err := dlog.NewSlogLogger(true, outputFile, dlog.FormatJSON,
+	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON,
+		dlog.WithOutputFile(outputFile),
 		dlog.WithGroup("myservice"),
 	)
 	require.NoError(t, err, "NewSlogLogger failed")
@@ -565,7 +570,7 @@ func TestSlogLogger_ImplementsDebugLogger(t *testing.T) {
 	var _ dlog.DebugLogger = &dlog.SlogLogger{}
 
 	// Also verify through NewSlogLogger
-	logger, _ := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
+	logger, _ := dlog.NewSlogLogger(true, dlog.FormatJSON)
 	defer logger.Close()
 	var _ dlog.DebugLogger = logger
 }

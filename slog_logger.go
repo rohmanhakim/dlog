@@ -16,8 +16,8 @@ type SlogLogger struct {
 
 // NewSlogLogger creates a new SlogLogger with the given configuration.
 // If enabled is false, a NoOpLogger is returned instead.
-// Optional parameters can be provided using WithMinLevel, WithIncludeFields, and WithExcludeFields.
-func NewSlogLogger(enabled bool, outputFile string, format Format, opts ...Option) (DebugLogger, error) {
+// Optional parameters can be provided using WithMinLevel, WithIncludeFields, WithExcludeFields, and WithOutputFile.
+func NewSlogLogger(enabled bool, format Format, opts ...Option) (DebugLogger, error) {
 	if !enabled {
 		return NewNoOpLogger(), nil
 	}
@@ -29,6 +29,7 @@ func NewSlogLogger(enabled bool, outputFile string, format Format, opts ...Optio
 		excludeFields: []string{},
 		preAttrs:      nil,
 		groupName:     "",
+		outputFile:    "",            // Default to stdout only
 		syncMode:      SyncImmediate, // Default to maximum durability
 		syncInterval:  0,             // Will use default in NewMultiWriter
 	}
@@ -39,7 +40,7 @@ func NewSlogLogger(enabled bool, outputFile string, format Format, opts ...Optio
 	}
 
 	// Create the writer (stdout + optional file)
-	writer, err := NewMultiWriter(outputFile, cfg.syncMode, cfg.syncInterval)
+	writer, err := NewMultiWriter(cfg.outputFile, cfg.syncMode, cfg.syncInterval)
 	if err != nil {
 		return nil, err
 	}
