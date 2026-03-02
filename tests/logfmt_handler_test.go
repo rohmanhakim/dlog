@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Helper to convert slog.Level to dlog.Level for tests
+func slogToDlogLevelLogfmt(level slog.Level) dlog.Level {
+	return dlog.Level(level)
+}
+
 func TestNewLogfmtHandler_NilOptions(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, nil)
@@ -22,7 +27,7 @@ func TestNewLogfmtHandler_NilOptions(t *testing.T) {
 func TestNewLogfmtHandler_WithLevel(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: dlog.LevelInfo,
 	})
 
 	ctx := context.Background()
@@ -83,7 +88,7 @@ func TestLogfmtHandler_Enabled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-				Level: tt.handlerLevel,
+				Level: slogToDlogLevelLogfmt(tt.handlerLevel),
 			})
 
 			ctx := context.Background()
@@ -97,7 +102,7 @@ func TestLogfmtHandler_Enabled(t *testing.T) {
 func TestLogfmtHandler_Handle(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -122,7 +127,7 @@ func TestLogfmtHandler_Handle(t *testing.T) {
 func TestLogfmtHandler_HandleWithFields(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -202,7 +207,7 @@ func TestLogfmtHandler_FieldFiltering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-				Level:         slog.LevelDebug,
+				Level:         dlog.LevelDebug,
 				IncludeFields: tt.includeFields,
 				ExcludeFields: tt.excludeFields,
 			})
@@ -235,7 +240,7 @@ func TestLogfmtHandler_FieldFiltering(t *testing.T) {
 func TestLogfmtHandler_WithAttrs(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	// Add attributes
@@ -255,7 +260,7 @@ func TestLogfmtHandler_WithAttrs(t *testing.T) {
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
 	var newBuf bytes.Buffer
-	logfmtHandler := dlog.NewLogfmtHandler(&newBuf, &dlog.HandlerOptions{Level: slog.LevelDebug})
+	logfmtHandler := dlog.NewLogfmtHandler(&newBuf, &dlog.HandlerOptions{Level: dlog.LevelDebug})
 	handlerWithAttrs := logfmtHandler.WithAttrs([]slog.Attr{
 		slog.String("pre_field", "pre_value"),
 	})
@@ -270,7 +275,7 @@ func TestLogfmtHandler_WithAttrs(t *testing.T) {
 func TestLogfmtHandler_WithAttrs_Empty(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	// With empty attrs should return same handler
@@ -282,7 +287,7 @@ func TestLogfmtHandler_WithAttrs_Empty(t *testing.T) {
 func TestLogfmtHandler_WithGroup(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	// WithGroup is a no-op for LogfmtHandler, should return same handler
@@ -324,7 +329,7 @@ func TestLogfmtHandler_ShouldIncludeField_NilFieldFilter(t *testing.T) {
 func TestLogfmtHandler_AppendField_GroupKind(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -352,7 +357,7 @@ func TestLogfmtHandler_AppendField_GroupKind(t *testing.T) {
 func TestLogfmtHandler_AppendField_NestedGroupKind(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -442,7 +447,7 @@ func TestLogfmtHandler_Format(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			handler := dlog.NewLogfmtHandler(&buf, &dlog.HandlerOptions{
-				Level: slog.LevelDebug,
+				Level: dlog.LevelDebug,
 			})
 
 			ctx := context.Background()

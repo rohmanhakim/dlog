@@ -12,6 +12,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Helper to convert slog.Level to dlog.Level for tests
+func slogToDlogLevel(level slog.Level) dlog.Level {
+	return dlog.Level(level)
+}
+
 func TestNewTextHandler_NilOptions(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, nil)
@@ -22,7 +27,7 @@ func TestNewTextHandler_NilOptions(t *testing.T) {
 func TestNewTextHandler_WithLevel(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelInfo,
+		Level: dlog.LevelInfo,
 	})
 
 	ctx := context.Background()
@@ -83,7 +88,7 @@ func TestTextHandler_Enabled(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-				Level: tt.handlerLevel,
+				Level: slogToDlogLevel(tt.handlerLevel),
 			})
 
 			ctx := context.Background()
@@ -97,7 +102,7 @@ func TestTextHandler_Enabled(t *testing.T) {
 func TestTextHandler_Handle(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -122,7 +127,7 @@ func TestTextHandler_Handle(t *testing.T) {
 func TestTextHandler_HandleWithFields(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -202,7 +207,7 @@ func TestTextHandler_FieldFiltering(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-				Level:         slog.LevelDebug,
+				Level:         dlog.LevelDebug,
 				IncludeFields: tt.includeFields,
 				ExcludeFields: tt.excludeFields,
 			})
@@ -235,7 +240,7 @@ func TestTextHandler_FieldFiltering(t *testing.T) {
 func TestTextHandler_WithAttrs(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	// Add attributes
@@ -255,7 +260,7 @@ func TestTextHandler_WithAttrs(t *testing.T) {
 	record := slog.NewRecord(now, slog.LevelInfo, "test message", 0)
 
 	var newBuf bytes.Buffer
-	textHandler := dlog.NewTextHandler(&newBuf, &dlog.HandlerOptions{Level: slog.LevelDebug})
+	textHandler := dlog.NewTextHandler(&newBuf, &dlog.HandlerOptions{Level: dlog.LevelDebug})
 	handlerWithAttrs := textHandler.WithAttrs([]slog.Attr{
 		slog.String("pre_field", "pre_value"),
 	})
@@ -270,7 +275,7 @@ func TestTextHandler_WithAttrs(t *testing.T) {
 func TestTextHandler_WithAttrs_Empty(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	// With empty attrs should return same handler
@@ -282,7 +287,7 @@ func TestTextHandler_WithAttrs_Empty(t *testing.T) {
 func TestTextHandler_WithGroup(t *testing.T) {
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	// WithGroup is a no-op for TextHandler, should return same handler
@@ -295,7 +300,7 @@ func TestTextHandler_HandleWithGroupAttr(t *testing.T) {
 	// Test formatField with slog.KindGroup
 	var buf bytes.Buffer
 	handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-		Level: slog.LevelDebug,
+		Level: dlog.LevelDebug,
 	})
 
 	ctx := context.Background()
@@ -409,7 +414,7 @@ func TestTextHandler_Format(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			var buf bytes.Buffer
 			handler := dlog.NewTextHandler(&buf, &dlog.HandlerOptions{
-				Level: slog.LevelDebug,
+				Level: dlog.LevelDebug,
 			})
 
 			ctx := context.Background()

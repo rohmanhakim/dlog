@@ -1,15 +1,11 @@
 package dlog
 
-import (
-	"log/slog"
-)
-
 // HandlerOptions configures handler behavior for all output formats.
 // It provides a unified configuration interface for TextHandler, LogfmtHandler,
 // and LogstashHandler.
 type HandlerOptions struct {
 	// Level is the minimum log level to output.
-	Level slog.Level
+	Level Level
 
 	// IncludeFields filters fields to include (empty = all).
 	// When specified, only fields in this list will be included in the output.

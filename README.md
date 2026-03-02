@@ -37,7 +37,7 @@ func main() {
         true, // enabled
         dlog.FormatLogstash, // specify log format
         dlog.WithOutputFile("debug.log"), // optional log file, will use stdout-only if not specified
-        dlog.WithMinLevel(slog.LevelDebug),
+        dlog.WithMinLevel(dlog.LevelDebug),
         dlog.WithSyncMode(dlog.SyncPeriodic),
         dlog.WithSyncInterval(1*time.Second),
     )
@@ -67,7 +67,7 @@ The `NewSlogLogger` function accepts multiple functional options. All options ha
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `WithMinLevel(level slog.Level)` | Set the minimum log level | `slog.LevelDebug` |
+| `WithMinLevel(level Level)` | Set the minimum log level | `LevelDebug` |
 | `WithIncludeFields(fields []string)` | Only output explicitly listed fields | Empty list (include all) |
 | `WithExcludeFields(fields []string)` | Strip sensitive fields from output | Empty list (exclude none) |
 | `WithFields(fields FieldMap)` | Pre-populate the logger with persistent fields | `nil` |
@@ -144,8 +144,16 @@ func NewSlogLogger(enabled bool, format Format, opts ...Option) (DebugLogger, er
 // Creates a NoOpLogger
 func NewNoOpLogger() DebugLogger
 
+// Level constants
+const (
+    LevelDebug Level = -4
+    LevelInfo  Level = 0
+    LevelWarn  Level = 4
+    LevelError Level = 8
+)
+
 // Functional options
-func WithMinLevel(level slog.Level) Option
+func WithMinLevel(level Level) Option
 func WithIncludeFields(fields []string) Option
 func WithExcludeFields(fields []string) Option
 func WithFields(fields FieldMap) Option

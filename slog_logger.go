@@ -48,7 +48,7 @@ func NewSlogLogger(enabled bool, format Format, opts ...Option) (DebugLogger, er
 	// Create the appropriate handler based on format
 	var handler slog.Handler
 	handlerOpts := &HandlerOptions{
-		Level:         cfg.minLevel,
+		Level:         Level(cfg.minLevel),
 		IncludeFields: cfg.includeFields,
 		ExcludeFields: cfg.excludeFields,
 	}

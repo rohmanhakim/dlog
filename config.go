@@ -5,6 +5,26 @@ import (
 	"time"
 )
 
+// Level represents a log level.
+// It wraps slog.Level to provide a cleaner API without exposing slog directly.
+type Level int
+
+const (
+	// LevelDebug is the debug log level.
+	LevelDebug Level = -4
+	// LevelInfo is the info log level.
+	LevelInfo Level = 0
+	// LevelWarn is the warn log level.
+	LevelWarn Level = 4
+	// LevelError is the error log level.
+	LevelError Level = 8
+)
+
+// toSlog converts dlog.Level to slog.Level for internal use.
+func (l Level) toSlog() slog.Level {
+	return slog.Level(l)
+}
+
 // SyncMode determines when file writes are flushed to disk.
 type SyncMode int
 
@@ -66,9 +86,9 @@ type config struct {
 type Option func(*config)
 
 // WithMinLevel sets the minimum log level.
-func WithMinLevel(level slog.Level) Option {
+func WithMinLevel(level Level) Option {
 	return func(c *config) {
-		c.minLevel = level
+		c.minLevel = level.toSlog()
 	}
 }
 

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log/slog"
 
 	"github.com/rohmanhakim/dlog"
 )
@@ -126,7 +125,7 @@ func main() {
 	logger4, _ := dlog.NewSlogLogger(
 		true,
 		dlog.FormatText,
-		dlog.WithMinLevel(slog.LevelWarn),
+		dlog.WithMinLevel(dlog.LevelWarn),
 	)
 	defer logger4.Close()
 

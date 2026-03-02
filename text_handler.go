@@ -27,7 +27,7 @@ func NewTextHandler(w io.Writer, opts *HandlerOptions) *TextHandler {
 
 	// Only override default if opts is provided
 	if opts != nil {
-		level = opts.Level
+		level = opts.Level.toSlog()
 		ff = newFieldFilter(opts.IncludeFields, opts.ExcludeFields)
 	}
 
