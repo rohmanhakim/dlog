@@ -16,7 +16,7 @@ func main() {
 
 	// FormatJSON uses standard slog.JSONHandler with NESTED groups:
 	// Output: {"time":"...","level":"INFO","msg":"...","request":{"id":"abc","method":"GET"}}
-	jsonLogger, _ := dlog.NewSlogLogger(true, dlog.FormatJSON, "")
+	jsonLogger, _ := dlog.NewSlogLogger(true, "", dlog.FormatJSON)
 	defer jsonLogger.Close()
 
 	jsonGrouped := jsonLogger.WithGroup("request")
@@ -27,7 +27,7 @@ func main() {
 
 	// FormatLogstash uses FLATTENED groups with dot notation:
 	// Output: {"@timestamp":"...","log.level":"INFO","message":"...","request.id":"abc","request.method":"GET"}
-	logstashLogger, _ := dlog.NewSlogLogger(true, dlog.FormatLogstash, "")
+	logstashLogger, _ := dlog.NewSlogLogger(true, "", dlog.FormatLogstash)
 	defer logstashLogger.Close()
 
 	logstashGrouped := logstashLogger.WithGroup("request")
@@ -41,8 +41,8 @@ func main() {
 	// =========================================================================
 	logger1, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatLogstash,
 		"",
+		dlog.FormatLogstash,
 		dlog.WithFields(dlog.FieldMap{
 			"service.name":    "billing-api",
 			"service.version": "1.0.0",
@@ -59,8 +59,8 @@ func main() {
 	// =========================================================================
 	logger2, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatLogstash,
 		"",
+		dlog.FormatLogstash,
 	)
 	defer logger2.Close()
 
@@ -77,8 +77,8 @@ func main() {
 	// 3a: Exclude sensitive fields
 	logger3a, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatLogstash,
 		"",
+		dlog.FormatLogstash,
 		dlog.WithExcludeFields([]string{"password", "token", "secret"}),
 	)
 	defer logger3a.Close()
@@ -92,8 +92,8 @@ func main() {
 	// 3b: Include only specific fields
 	logger3b, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatLogstash,
 		"",
+		dlog.FormatLogstash,
 		dlog.WithIncludeFields([]string{
 			"service.name", "service.version", "request.id", "user.id",
 		}),
@@ -111,8 +111,8 @@ func main() {
 	// 3c: Combine WithGroup and WithFields
 	logger3c, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatLogstash,
 		"",
+		dlog.FormatLogstash,
 		dlog.WithFields(dlog.FieldMap{
 			"service": "api-gateway",
 		}),
@@ -130,8 +130,8 @@ func main() {
 	// =========================================================================
 	logger4, _ := dlog.NewSlogLogger(
 		true,
-		dlog.FormatText,
 		"",
+		dlog.FormatText,
 		dlog.WithMinLevel(slog.LevelWarn),
 	)
 	defer logger4.Close()

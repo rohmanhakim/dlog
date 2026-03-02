@@ -12,7 +12,7 @@ import (
 func main() {
 	// FormatJSON - Standard slog.JSONHandler (nested groups)
 	// Output: {"time":"...","level":"INFO","msg":"...","request":{"id":"..."}}
-	jsonLogger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "test-output.json")
+	jsonLogger, err := dlog.NewSlogLogger(true, "test-output.json", dlog.FormatJSON)
 	if err != nil {
 		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
 		jsonLogger = dlog.NewNoOpLogger()
@@ -21,7 +21,7 @@ func main() {
 
 	// FormatLogstash - Logstash-compatible format (flattened groups, renamed fields)
 	// Output: {"@timestamp":"...","log.level":"INFO","message":"...","request.id":"..."}
-	logstashLogger, err := dlog.NewSlogLogger(true, dlog.FormatLogstash, "test-output-logstash.json")
+	logstashLogger, err := dlog.NewSlogLogger(true, "test-output-logstash.json", dlog.FormatLogstash)
 	if err != nil {
 		log.Printf("failed to create debug logger: %v, using NoOpLogger", err)
 		logstashLogger = dlog.NewNoOpLogger()
@@ -30,7 +30,7 @@ func main() {
 
 	// FormatText - Human-readable text format
 	// With SyncBuffered for better performance (flushes only on Close())
-	textLogger, err := dlog.NewSlogLogger(true, dlog.FormatText, "test-output.txt",
+	textLogger, err := dlog.NewSlogLogger(true, "test-output.txt", dlog.FormatText,
 		dlog.WithSyncMode(dlog.SyncBuffered),
 	)
 	if err != nil {
@@ -41,7 +41,7 @@ func main() {
 
 	// FormatLogfmt - Logfmt format (key=value pairs)
 	// With SyncPeriodic for balanced durability/performance (flushes every second by default)
-	logfmtLogger, err := dlog.NewSlogLogger(true, dlog.FormatLogfmt, "test-output.logfmt",
+	logfmtLogger, err := dlog.NewSlogLogger(true, "test-output.logfmt", dlog.FormatLogfmt,
 		dlog.WithSyncMode(dlog.SyncPeriodic),
 		dlog.WithSyncInterval(500*time.Millisecond), // custom flush interval
 	)

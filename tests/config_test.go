@@ -10,7 +10,7 @@ import (
 )
 
 func TestNewSlogLogger_DisabledReturnsNoOp_FromConfig(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(false, dlog.FormatJSON, "")
+	logger, err := dlog.NewSlogLogger(false, "", dlog.FormatJSON)
 	require.NoError(t, err, "NewSlogLogger failed")
 
 	// Should return NoOpLogger when disabled
@@ -18,7 +18,7 @@ func TestNewSlogLogger_DisabledReturnsNoOp_FromConfig(t *testing.T) {
 }
 
 func TestNewSlogLogger_WithOptions(t *testing.T) {
-	logger, err := dlog.NewSlogLogger(true, dlog.FormatJSON, "",
+	logger, err := dlog.NewSlogLogger(true, "", dlog.FormatJSON,
 		dlog.WithMinLevel(slog.LevelInfo),
 		dlog.WithIncludeFields([]string{"fieldA", "fieldB"}),
 		dlog.WithExcludeFields([]string{"fieldC"}),

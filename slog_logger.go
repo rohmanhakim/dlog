@@ -17,7 +17,7 @@ type SlogLogger struct {
 // NewSlogLogger creates a new SlogLogger with the given configuration.
 // If enabled is false, a NoOpLogger is returned instead.
 // Optional parameters can be provided using WithMinLevel, WithIncludeFields, and WithExcludeFields.
-func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Option) (DebugLogger, error) {
+func NewSlogLogger(enabled bool, outputFile string, format Format, opts ...Option) (DebugLogger, error) {
 	if !enabled {
 		return NewNoOpLogger(), nil
 	}

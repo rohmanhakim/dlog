@@ -35,8 +35,8 @@ func main() {
     // Execute with initialized slog wrapper options
     logger, err := dlog.NewSlogLogger(
         true, // enabled
-        dlog.FormatLogstash,
         "debug.log",
+        dlog.FormatLogstash,
         dlog.WithMinLevel(slog.LevelDebug),
         dlog.WithSyncMode(dlog.SyncPeriodic),
         dlog.WithSyncInterval(1*time.Second),
@@ -92,7 +92,7 @@ Filter noisy attributes directly without parsing intermediate payloads. Excludes
 
 ```go
 logger, _ := dlog.NewSlogLogger(
-    true, dlog.FormatJSON, "",
+    true, "", dlog.FormatJSON,
     dlog.WithExcludeFields([]string{"password", "token"}),
 )
 // Result: `password` and `token` attributes are quietly dropped from final output.
@@ -138,7 +138,7 @@ type SyncMode int
 ### Functions
 ```go
 // Creates a new SlogLogger with the given configuration
-func NewSlogLogger(enabled bool, format Format, outputFile string, opts ...Option) (DebugLogger, error)
+func NewSlogLogger(enabled bool, outputFile string, format Format, opts ...Option) (DebugLogger, error)
 
 // Creates a NoOpLogger
 func NewNoOpLogger() DebugLogger
